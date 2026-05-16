@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Curious Ember – Mitt Fiske</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header" id="app-header"></header>
+
+<main class="page-content" style="padding:20px 16px">
+
+  <h1 style="font-size:1.1rem;margin-bottom:4px">Mitt Fiske</h1>
+  <p class="text-muted text-sm" style="margin-bottom:24px">Dina fisketurer</p>
+
+  <!-- Starta ny session -->
+  <a href="index.html" class="btn btn-primary btn-full btn-pulse" style="display:flex;margin-bottom:28px;text-decoration:none">
+    🎣 Starta ny fisketur
+  </a>
+
+  <!-- Skeleton medan vi laddar -->
+  <div id="hist-skeleton">
+    <p class="section-title" style="margin-bottom:10px">Senaste turer</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${[1,2,3].map(()=>`
+        <div class="card card-body">
+          <div class="skeleton skeleton-text" style="width:60%;margin-bottom:8px"></div>
+          <div class="skeleton skeleton-text" style="width:40%"></div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- Historik -->
+  <div id="hist-content" style="display:none">
+    <p class="section-title" style="margin-bottom:10px">Senaste turer</p>
+    <div id="hist-list" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- Tom state -->
+  <div id="hist-empty" class="empty-state" style="display:none">
+    <div class="empty-icon">🏞️</div>
+    <p style="font-weight:700;margin-bottom:6px">Inga fisketurer ännu</p>
+    <p class="text-sm text-muted">Starta din första fisketur ovan!</p>
+  </div>
+
+</main>
+
+<nav id="bottom-nav"></nav>
+<script type="module" src="script.js"></script>
+</body>
+</html>

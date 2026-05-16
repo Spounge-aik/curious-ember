@@ -8,26 +8,39 @@
 </head>
 <body>
 
-<main style="padding:28px 16px 16px">
+<header class="app-header" id="app-header"></header>
 
-  <button class="back-btn" onclick="history.back()" style="margin-bottom:20px">← Tillbaka</button>
+<main class="page-content" style="padding:20px 16px">
+
+  <button class="back-btn" onclick="history.back()" style="margin-bottom:18px">← Tillbaka</button>
 
   <!-- Session header -->
   <div class="session-header" style="margin-bottom:24px">
-    <p class="sh-label">Aktivt fiske</p>
+    <p class="sh-label">🟢 Fiske pågår</p>
     <p class="sh-lake" id="session-lake">Laddar…</p>
     <div class="sh-fish">
-      <span style="font-size:22px">🐟</span>
-      <span id="session-fish"></span>
+      <span style="font-size:22px" id="session-fish-emoji">🐟</span>
+      <span id="session-fish" style="font-weight:700"></span>
     </div>
     <p class="sh-time" id="session-time"></p>
   </div>
 
-  <!-- Laddar -->
-  <div id="loading-state" style="text-align:center;padding:48px 0">
-    <div style="font-size:40px;margin-bottom:12px">🤖</div>
-    <p style="font-weight:700;margin-bottom:4px">Analyserar ditt bibliotek</p>
-    <p class="text-sm text-muted">Hämtar AI-rekommendationer…</p>
+  <!-- Skeleton -->
+  <div id="loading-state">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">
+      <div class="skeleton" style="height:16px;width:40%;border-radius:4px"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="skeleton" style="height:16px;width:40%;border-radius:4px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Fel -->
@@ -37,24 +50,27 @@
   <div id="rec-content" style="display:none">
 
     <div id="tip-box" class="alert alert-tip" style="display:none;margin-bottom:20px">
-      <p style="font-weight:700;margin-bottom:4px;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">💡 Tips</p>
-      <p id="tip-text"></p>
+      <p style="font-weight:700;margin-bottom:4px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">💡 Tips</p>
+      <p id="tip-text" style="font-size:.82rem"></p>
     </div>
 
-    <div id="rods-section" style="display:none;margin-bottom:24px">
-      <p class="section-title">🎣 Rekommenderade spön</p>
+    <!-- Spön som rec-cards -->
+    <div id="rods-section" style="display:none;margin-bottom:28px">
+      <p class="section-title" style="margin-bottom:12px">🎣 Rekommenderade spön</p>
       <div id="rods-list" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
 
+    <!-- Beten som lure-grid -->
     <div id="lures-section" style="display:none;margin-bottom:24px">
-      <p class="section-title">🪝 Rekommenderade beten</p>
-      <div id="lures-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <p class="section-title" style="margin-bottom:12px">🪝 Rekommenderade beten</p>
+      <div id="lures-list" class="lure-grid"></div>
     </div>
 
     <div id="empty-rec" class="empty-state" style="display:none">
       <div class="empty-icon">📭</div>
       <p style="font-weight:700;margin-bottom:6px">Tomt bibliotek</p>
-      <p class="text-sm text-muted">Lägg till utrustning under Bibliotek för att få rekommendationer.</p>
+      <p class="text-sm text-muted">Lägg till utrustning under Utrustning för att få rekommendationer.</p>
+      <a href="library.html" class="btn btn-primary" style="margin-top:16px;text-decoration:none">Gå till Utrustning</a>
     </div>
 
   </div>

@@ -324,3 +324,229 @@ textarea { resize: none; }
   background: linear-gradient(to top, var(--bg) 60%, transparent);
   padding-top: 20px; margin-top: 12px;
 }
+
+/* ════════════════════════════════════════════════
+   Fas 2: Layout – Header, nav, transitions
+   ════════════════════════════════════════════════ */
+
+/* ── Page fade transition ───────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-content { animation: fadeIn .22s ease-out both; }
+
+/* ── App header ─────────────────────────────────── */
+.app-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(15,23,42,.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+}
+.app-header .logo {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: .9rem; letter-spacing: .02em; color: var(--text);
+  text-decoration: none;
+}
+.app-header .logo-flame { font-size: 18px; }
+.app-header .header-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px; transition: background .15s;
+  color: var(--text-2);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* ── Bottom nav – 3 flikar ──────────────────────── */
+#bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; z-index: 100;
+  box-shadow: 0 -4px 24px rgba(0,0,0,.5);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#bottom-nav a {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 10px 0 8px; font-size: .6rem; font-weight: 700;
+  color: var(--text-3); text-decoration: none; gap: 4px;
+  transition: color .15s; letter-spacing: .05em; text-transform: uppercase;
+  position: relative;
+}
+#bottom-nav a.active { color: var(--accent); }
+#bottom-nav a:hover  { color: var(--text-2); }
+#bottom-nav .nav-icon { font-size: 20px; line-height: 1; }
+#bottom-nav a.active::after {
+  content: '';
+  position: absolute; top: 0; left: 25%; right: 25%;
+  height: 2px; background: var(--accent);
+  border-radius: 0 0 2px 2px;
+}
+
+/* ── Desktop mode ───────────────────────────────── */
+body.desktop-mode { max-width: 900px; }
+body.desktop-mode #bottom-nav { max-width: 900px; }
+body.desktop-mode .app-header { max-width: 900px; }
+body.desktop-mode .fish-grid { grid-template-columns: 1fr 1fr 1fr; }
+body.desktop-mode .equipment-grid { grid-template-columns: 1fr 1fr 1fr; }
+body.desktop-mode #map { height: 320px; }
+
+/* ════════════════════════════════════════════════
+   Fas 3: Komponenter
+   ════════════════════════════════════════════════ */
+
+/* ── GPS-widget / live-punkt ─────────────────────── */
+@keyframes gps-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+.gps-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--success); flex-shrink: 0;
+  animation: gps-pulse 1.8s infinite;
+}
+.gps-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: var(--shadow);
+}
+.gps-card .gps-info { flex: 1; }
+.gps-card .gps-label { font-size: .62rem; font-weight: 700; color: var(--success); text-transform: uppercase; letter-spacing: .08em; }
+.gps-card .gps-name  { font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 2px; }
+.gps-card .gps-dist  { font-size: .72rem; color: var(--text-3); margin-top: 1px; }
+
+/* ── Horisontellt fiskgalleri ───────────────────── */
+.fish-scroll-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding-bottom: 4px;
+  margin: 0 -16px; padding-left: 16px; padding-right: 16px;
+}
+.fish-scroll-wrap::-webkit-scrollbar { display: none; }
+.fish-scroll-inner { display: flex; gap: 10px; width: max-content; }
+
+.fish-card-h {
+  width: 120px; flex-shrink: 0;
+  background: var(--surface); border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border-soft); padding: 16px 10px;
+  text-align: center; cursor: pointer; transition: all .18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.fish-card-h:hover  { border-color: var(--border); background: var(--surface-2); transform: translateY(-2px); }
+.fish-card-h.selected {
+  border-color: var(--accent); background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: translateY(-2px);
+}
+.fish-card-h:active { transform: scale(.95); }
+.fish-card-h .fe   { font-size: 32px; margin-bottom: 8px; }
+.fish-card-h .fn   { font-weight: 700; font-size: .75rem; color: var(--text); }
+.fish-card-h.selected .fn { color: var(--accent); }
+.fish-card-h .ftag { font-size: .6rem; color: var(--text-3); margin-top: 3px; background: var(--surface-2); border-radius: var(--radius-full); padding: 2px 6px; display: inline-block; }
+.fish-card-h.selected .ftag { background: rgba(249,115,22,.2); color: var(--accent); }
+
+/* ── Betesgalleri ───────────────────────────────── */
+.lure-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.lure-card {
+  background: var(--surface); border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft); overflow: hidden;
+  transition: transform .18s, box-shadow .18s;
+  cursor: pointer;
+}
+.lure-card:hover  { transform: translateY(-3px) scale(1.01); box-shadow: var(--shadow); }
+.lure-card:active { transform: scale(.97); }
+
+.lure-img-wrap {
+  position: relative; height: 120px;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; font-size: 36px;
+}
+.lure-img-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+.lure-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(15,23,42,.85), transparent);
+  padding: 20px 8px 6px;
+  display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-start;
+}
+.lure-chip {
+  font-size: .58rem; font-weight: 700; letter-spacing: .04em;
+  background: rgba(15,23,42,.7); color: var(--text-2);
+  border-radius: 4px; padding: 2px 5px;
+  backdrop-filter: blur(4px);
+}
+.best-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--accent); color: #fff;
+  font-size: .58rem; font-weight: 700; letter-spacing: .04em;
+  border-radius: var(--radius-full); padding: 3px 8px;
+  text-transform: uppercase; box-shadow: 0 2px 8px rgba(249,115,22,.5);
+}
+.lure-body { padding: 10px 12px; }
+.lure-name   { font-weight: 700; font-size: .8rem; }
+.lure-reason { font-size: .7rem; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+
+/* ════════════════════════════════════════════════
+   Fas 4: Mikrointeraktioner
+   ════════════════════════════════════════════════ */
+
+/* ── Pulsande CTA-knapp ─────────────────────────── */
+@keyframes btn-pulse {
+  0%,100% { box-shadow: 0 2px 12px rgba(249,115,22,.35); }
+  50%      { box-shadow: 0 4px 28px rgba(249,115,22,.65), 0 0 0 6px rgba(249,115,22,.12); }
+}
+.btn-pulse { animation: btn-pulse 2.4s ease-in-out infinite; }
+.btn-pulse:hover, .btn-pulse:active { animation: none; }
+
+/* ── Fishing active state ───────────────────────── */
+@keyframes fish-timer { from { opacity:.4; } to { opacity:1; } }
+.btn-fishing {
+  background: var(--surface-2) !important;
+  color: var(--success) !important;
+  box-shadow: 0 0 0 2px var(--success) !important;
+  animation: fish-timer 1s ease-in-out infinite alternate !important;
+  cursor: default !important;
+}
+
+/* ── Skeleton loader ─────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius);
+}
+.skeleton-text  { height: 14px; border-radius: 4px; }
+.skeleton-title { height: 20px; border-radius: 4px; }
+.skeleton-card  { height: 160px; border-radius: var(--radius-lg); }
+.skeleton-fish  { width: 120px; height: 140px; border-radius: var(--radius-lg); flex-shrink: 0; }
+.skeleton-circle { border-radius: 50%; }
+
+/* ── Card hover/tap ─────────────────────────────── */
+.card-interactive {
+  transition: transform .18s, box-shadow .18s;
+  cursor: pointer;
+}
+.card-interactive:hover  { transform: translateY(-2px) scale(1.01); box-shadow: var(--shadow); }
+.card-interactive:active { transform: scale(.97); transition-duration: .08s; }
+
+/* ── Sessionshistorik-kort ──────────────────────── */
+.session-hist-card {
+  background: var(--surface); border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg); padding: 14px 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: all .15s; cursor: pointer;
+}
+.session-hist-card:hover { border-color: var(--border); background: var(--surface-2); }
+.session-hist-card .sh-fish-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.session-hist-card .sh-badge { background: var(--accent-dim); color: var(--accent); font-size: .65rem; font-weight: 700; border-radius: var(--radius-full); padding: 2px 8px; }
+

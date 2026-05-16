@@ -1,59 +1,63 @@
-import { renderNav }          from './components/nav.js';
-import { initAuth }           from './components/auth.js';
-import { initMap }            from './components/map.js';
-import { renderFishGrid, setupFishGridCallback } from './components/fishGrid.js';
-import { initLibrary }        from './components/library.js';
-import { renderRecommendations } from './components/recommendations.js';
+import { renderNav }              from './components/nav.js';
+import { renderHeader }           from './components/header.js';
+import { initAuth }               from './components/auth.js';
+import { initMap }                from './components/map.js';
+import { renderRecommendations }  from './components/recommendations.js';
+import { initLibrary }            from './components/library.js';
 
-// ── Supabase ────────────────────────────────────────────────────
-const SUPABASE_URL  = 'https://mixrkpghedwpjrrlgrxe.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_M4v29oq3U2RjNVOnWsqlOQ_Y63pTD7c';
-
+// ── Supabase ─────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://mixrkpghedwpjrrlgrxe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_M4v29oq3U2RjNVOnWsqlOQ_Y63pTD7c';
 let _sb = null;
 export function getSupabase() {
   if (!_sb) _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   return _sb;
 }
 
-// ── GBIF fisknycklar ────────────────────────────────────────────
+// ── GBIF fiskdata ─────────────────────────────────────────────────
 const GBIF_KEYS = {
   gadda:2346633, abborre:8140485, gos:2382155, lake:2415460,
-  lax:7595433, oring:8215487, rodding:4284021, harr:5203999,
-  mort:2359706, braxen:9809222, rudor:2366645, id:4409643,
-  asp:5851603, sik:2351211, bjorkna:2359471, sarv:2362635, karp:4286975,
+  lax:7595433,   oring:8215487,  rodding:4284021, harr:5203999,
+  mort:2359706,  braxen:9809222, rudor:2366645,   id:4409643,
+  asp:5851603,   sik:2351211,    bjorkna:2359471,  sarv:2362635, karp:4286975,
 };
 const KEY_TO_ID = Object.fromEntries(Object.entries(GBIF_KEYS).map(([id,k])=>[k,id]));
 
+const FISH_EMOJI = {
+  gadda:'🐟', abborre:'🐠', gos:'🐡', lake:'🦑', lax:'🐟',
+  oring:'🐟', rodding:'🐟', harr:'🐟', karp:'🐡', rudor:'🐠',
+  braxen:'🐟', id:'🐟', asp:'🐟', sik:'🐟', mort:'🐟', sarv:'🐟', bjorkna:'🐟',
+};
+
 const FISH_INFO = {
-  gadda:   { name:'Gädda',   desc:'Stor rovfisk, finns i de flesta svenska sjöar' },
-  abborre: { name:'Abborre', desc:'Vanlig i svenska sjöar och åar' },
-  gos:     { name:'Gösen',   desc:'Rovfisk som gärna håller till i djupare vatten' },
-  lake:    { name:'Lake',    desc:'Bottenfisk, aktiv på vintern' },
-  lax:     { name:'Lax',     desc:'Stor sportfisk i rinnande vatten' },
-  oring:   { name:'Öring',   desc:'Kräver syrerikt kallt vatten' },
-  rodding: { name:'Rödding', desc:'Kräsen fisk i kalla och djupa sjöar' },
-  harr:    { name:'Harr',    desc:'Vacker sportfisk i strömmande vatten' },
-  karp:    { name:'Karp',    desc:'Stor fredfisk, populär bland sportfiskare' },
-  rudor:   { name:'Ruda',    desc:'Tålig fredfisk i grunda vatten' },
-  braxen:  { name:'Braxen',  desc:'Fredfisk som trivs i lugnflytande vatten' },
-  id:      { name:'Id',      desc:'Silverfärgad fredfisk' },
-  asp:     { name:'Asp',     desc:'Rovfisk bland fredfiskarna' },
-  sik:     { name:'Sik',     desc:'Populär fisk i norra Sverige' },
-  mort:    { name:'Mört',    desc:'En av Sveriges vanligaste fiskarter' },
-  sarv:    { name:'Sarv',    desc:'Vanlig i grunda sjöar med rik vegetation' },
-  bjorkna: { name:'Björkna', desc:'Fredfisk, vanlig i Bohuslänska sjöar' },
+  gadda:   { name:'Gädda',   desc:'Stor rovfisk',            tag:'Vanlig' },
+  abborre: { name:'Abborre', desc:'Vanlig i hela Sverige',   tag:'Vanlig' },
+  gos:     { name:'Gösen',   desc:'Djuplevande rovfisk',     tag:'Vanlig' },
+  lake:    { name:'Lake',    desc:'Aktiv på vintern',        tag:'Vanlig' },
+  lax:     { name:'Lax',     desc:'Stor sportfisk',          tag:'Vanlig' },
+  oring:   { name:'Öring',   desc:'Kräver kallt vatten',     tag:'Vanlig' },
+  rodding: { name:'Rödding', desc:'Djupa kalla sjöar',       tag:'Vanlig' },
+  harr:    { name:'Harr',    desc:'Strömmande vatten',       tag:'Vanlig' },
+  karp:    { name:'Karp',    desc:'Stor fredfisk',           tag:'Inplanterad' },
+  rudor:   { name:'Ruda',    desc:'Grunda sjöar',            tag:'Vanlig' },
+  braxen:  { name:'Braxen',  desc:'Lugnvatten',              tag:'Vanlig' },
+  id:      { name:'Id',      desc:'Silverfärgad fredfisk',   tag:'Vanlig' },
+  asp:     { name:'Asp',     desc:'Rovfisk bland fredfisk',  tag:'Vanlig' },
+  sik:     { name:'Sik',     desc:'Norra Sverige',           tag:'Vanlig' },
+  mort:    { name:'Mört',    desc:'Vanligaste fiskarten',    tag:'Vanlig' },
+  sarv:    { name:'Sarv',    desc:'Grunda vegetationsrika',  tag:'Vanlig' },
+  bjorkna: { name:'Björkna', desc:'Vanlig kustsjö',         tag:'Vanlig' },
 };
 
 async function fetchFishForLake(lat, lng) {
   const deg = 0.07;
-  const keys = Object.values(GBIF_KEYS);
   const params = new URLSearchParams({
-    decimalLatitude:  `${lat-deg},${lat+deg}`,
-    decimalLongitude: `${lng-deg},${lng+deg}`,
-    country: 'SE', limit: '300', hasCoordinate: 'true', occurrenceStatus: 'PRESENT',
+    decimalLatitude: `${lat-deg},${lat+deg}`,
+    decimalLongitude:`${lng-deg},${lng+deg}`,
+    country:'SE', limit:'300', hasCoordinate:'true', occurrenceStatus:'PRESENT',
   });
-  keys.forEach(k => params.append('taxonKey', k));
-  const r = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`);
+  Object.values(GBIF_KEYS).forEach(k => params.append('taxonKey', k));
+  const r    = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`);
   const data = await r.json();
   const found = new Set();
   for (const occ of data.results ?? []) {
@@ -63,7 +67,7 @@ async function fetchFishForLake(lat, lng) {
   return [...found].map(id => ({ id, ...FISH_INFO[id] })).filter(f => f.name);
 }
 
-// ── Sjödata (seed) ──────────────────────────────────────────────
+// ── Sjödata ───────────────────────────────────────────────────────
 const SEED_LAKES = [
   {id:'trekanten',name:'Trekanten',lat:59.308,lng:18.005,county:'Stockholm'},
   {id:'judarn',name:'Judarn',lat:59.343,lng:17.924,county:'Stockholm'},
@@ -93,10 +97,10 @@ const SEED_LAKES = [
   {id:'storsjön-z',name:'Storsjön',lat:63.15,lng:14.38,county:'Jämtland'},
 ];
 
-function haversine(lat1,lng1,lat2,lng2){
-  const R=6371,dL=((lat2-lat1)*Math.PI)/180,dG=((lng2-lng1)*Math.PI)/180;
-  const a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dG/2)**2;
-  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+function haversine(a,b,c,d){
+  const R=6371,dL=((c-a)*Math.PI)/180,dG=((d-b)*Math.PI)/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)));
 }
 function getNearby(lat,lng){
   return SEED_LAKES.map(l=>({...l,distance_km:haversine(lat,lng,l.lat,l.lng)}))
@@ -106,11 +110,18 @@ function searchLakes(q){
   return SEED_LAKES.filter(l=>l.name.toLowerCase().includes(q.toLowerCase()));
 }
 
-// ── Router ──────────────────────────────────────────────────────
+// ── Router & init ─────────────────────────────────────────────────
 const page = location.pathname.split('/').pop() || 'index.html';
-renderNav();
 
-// Ladda Supabase CDN dynamiskt
+// Fade-in på varje sida
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('main').forEach(m => m.classList.add('page-content'));
+});
+
+renderNav();
+if (document.getElementById('app-header')) renderHeader();
+
+// Ladda Supabase SDK dynamiskt
 const sbScript = document.createElement('script');
 sbScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
 sbScript.onload = () => {
@@ -124,103 +135,131 @@ function initPage() {
   if (page === 'library.html') return initLibrary();
   if (page === 'lake.html')    return initLakePage();
   if (page === 'session.html') return initSessionPage();
+  if (page === 'history.html') return initHistoryPage();
   initHomePage();
 }
 
-// ── Hemsida ─────────────────────────────────────────────────────
+// ── Hemsida ───────────────────────────────────────────────────────
 function initHomePage() {
   let selectedLake = null;
-  let showSearch   = false;
+  let allLakes     = [];
 
-  const gpsBtn     = document.getElementById('btn-gps');
+  const gpsBtn       = document.getElementById('btn-gps');
   const searchToggle = document.getElementById('btn-search-toggle');
-  const searchBox  = document.getElementById('search-box');
-  const searchInput= document.getElementById('search-input');
-  const statusMsg  = document.getElementById('status-msg');
-  const mapDiv     = document.getElementById('map');
-  const lakeSection= document.getElementById('lake-section');
-  const lakeList   = document.getElementById('lake-list');
-  const ctaWrap    = document.getElementById('cta-wrap');
-  const startBtn   = document.getElementById('btn-start');
-  const emptyState = document.getElementById('empty-state');
-  const listTitle  = document.getElementById('lake-list-title');
+  const searchBox    = document.getElementById('search-box');
+  const searchInput  = document.getElementById('search-input');
+  const statusMsg    = document.getElementById('status-msg');
+  const mapDiv       = document.getElementById('map');
+  const lakeSection  = document.getElementById('lake-section');
+  const lakeList     = document.getElementById('lake-list');
+  const ctaWrap      = document.getElementById('cta-wrap');
+  const startBtn     = document.getElementById('btn-start');
+  const emptyState   = document.getElementById('empty-state');
+  const listTitle    = document.getElementById('lake-list-title');
+  const gpsSkeleton  = document.getElementById('gps-skeleton');
+  const gpsWidget    = document.getElementById('gps-widget');
+  const lakeSkeleton = document.getElementById('lake-skeleton');
 
   function setStatus(msg) {
-    statusMsg.textContent = msg;
-    statusMsg.style.display = msg ? 'block' : 'none';
+    statusMsg.textContent    = msg;
+    statusMsg.style.display  = msg ? 'block' : 'none';
   }
 
-  function renderLakes(lakes) {
-    emptyState.style.display = 'none';
-    mapDiv.style.display  = 'block';
-    lakeSection.style.display = 'block';
+  function showSkeletons() {
+    emptyState.style.display  = 'none';
+    gpsSkeleton.style.display = 'block';
+    lakeSkeleton.style.display = 'block';
+  }
+
+  function renderLakes(lakes, isSearch = false) {
+    allLakes = lakes;
+    gpsSkeleton.style.display  = 'none';
+    lakeSkeleton.style.display = 'none';
+    emptyState.style.display   = 'none';
+    mapDiv.style.display       = 'block';
+    lakeSection.style.display  = 'block';
+    listTitle.textContent      = isSearch ? 'Sökresultat' : 'Närmaste sjöar';
+
+    // GPS-widget: visa närmaste sjö
+    if (!isSearch && lakes[0]) {
+      document.getElementById('gps-lake-name').textContent = lakes[0].name;
+      document.getElementById('gps-lake-dist').textContent = `${lakes[0].distance_km} km bort · ${lakes[0].county}`;
+      gpsWidget.style.display = 'block';
+      document.getElementById('gps-select-btn').onclick = () => selectLake(lakes[0], lakes);
+    }
+
     lakeList.innerHTML = lakes.map(l => `
-      <button class="card card-body lake-btn" data-id="${l.id}"
-        style="text-align:left;width:100%;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all .15s;border:1.5px solid ${selectedLake?.id===l.id?'#0284c7':'#f3f4f6'};background:${selectedLake?.id===l.id?'#e0f2fe':'#fff'}">
+      <button class="lake-btn ${selectedLake?.id === l.id ? 'active' : ''}" data-id="${l.id}">
         <div>
-          <p style="font-weight:600;${selectedLake?.id===l.id?'color:#075985':''}">${l.name}</p>
-          <p style="font-size:12px;color:${selectedLake?.id===l.id?'#0284c7':'#9ca3af'}">${l.county}${l.distance_km!=null?' · '+l.distance_km+' km':''}</p>
+          <div class="lake-name">${l.name}</div>
+          <div class="lake-meta">${l.county}${l.distance_km != null ? ' · ' + l.distance_km + ' km' : ''}</div>
         </div>
-        ${selectedLake?.id===l.id?'<span style="color:#0284c7">✓</span>':''}
+        ${selectedLake?.id === l.id ? `<span style="color:var(--accent);font-size:1.1rem">✓</span>` : ''}
       </button>`).join('');
-    lakeList.querySelectorAll('.lake-btn').forEach(btn => {
+
+    lakeList.querySelectorAll('.lake-btn').forEach(btn =>
       btn.addEventListener('click', () => {
-        selectedLake = lakes.find(l => l.id === btn.dataset.id);
-        renderLakes(lakes);
-        ctaWrap.style.display = 'block';
-        startBtn.textContent = `🎣 Starta fiske vid ${selectedLake.name}`;
-      });
-    });
+        const lake = lakes.find(l => l.id === btn.dataset.id);
+        if (lake) selectLake(lake, lakes);
+      }));
+
     const center = lakes[0] ? [lakes[0].lat, lakes[0].lng] : [62.5, 16];
-    initMap(center, lakes, lake => {
-      selectedLake = lake;
-      renderLakes(lakes);
-      ctaWrap.style.display = 'block';
-      startBtn.textContent = `🎣 Starta fiske vid ${selectedLake.name}`;
-    });
+    initMap(center, lakes, lake => selectLake(lake, lakes));
+  }
+
+  function selectLake(lake, lakes) {
+    selectedLake = lake;
+    renderLakes(lakes, listTitle.textContent === 'Sökresultat');
+    ctaWrap.style.display = 'block';
+    startBtn.textContent  = `🎣 Starta fiske vid ${lake.name}`;
+    sessionStorage.setItem('selectedLake', JSON.stringify(lake));
   }
 
   gpsBtn.addEventListener('click', () => {
-    if (!navigator.geolocation) { setStatus('GPS stöds ej.'); return; }
-    setStatus('Lokaliserar dig…');
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const { latitude: lat, longitude: lng } = pos.coords;
-      setStatus('');
-      listTitle.textContent = 'Närmaste sjöar';
-      renderLakes(getNearby(lat, lng));
-    }, () => setStatus('Kunde inte hämta plats. Kontrollera GPS-behörighet.'));
+    if (!navigator.geolocation) { setStatus('GPS stöds ej i din webbläsare.'); return; }
+    showSkeletons();
+    setStatus('');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        renderLakes(getNearby(lat, lng));
+      },
+      () => {
+        gpsSkeleton.style.display  = 'none';
+        lakeSkeleton.style.display = 'none';
+        emptyState.style.display   = 'block';
+        setStatus('Kunde inte hämta plats. Kontrollera GPS-behörighet.');
+      }
+    );
   });
 
   searchToggle.addEventListener('click', () => {
-    showSearch = !showSearch;
-    searchBox.style.display = showSearch ? 'block' : 'none';
-    if (showSearch) searchInput.focus();
+    const open = searchBox.style.display === 'none';
+    searchBox.style.display = open ? 'block' : 'none';
+    if (open) searchInput.focus();
   });
 
-  let searchTimer;
+  let timer;
   searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
       const q = searchInput.value.trim();
       if (q.length < 2) return;
-      listTitle.textContent = 'Sökresultat';
-      renderLakes(searchLakes(q));
-    }, 300);
+      renderLakes(searchLakes(q), true);
+    }, 280);
   });
 
   startBtn.addEventListener('click', () => {
     if (!selectedLake) return;
-    sessionStorage.setItem('selectedLake', JSON.stringify(selectedLake));
     location.href = `lake.html?id=${selectedLake.id}`;
   });
 }
 
-// ── Sjösida ─────────────────────────────────────────────────────
+// ── Sjösida ───────────────────────────────────────────────────────
 async function initLakePage() {
   const params = new URLSearchParams(location.search);
-  const lakeId = params.get('id');
   const lake   = JSON.parse(sessionStorage.getItem('selectedLake') || 'null')
-    ?? SEED_LAKES.find(l => l.id === lakeId);
+    ?? SEED_LAKES.find(l => l.id === params.get('id'));
 
   if (!lake) { document.getElementById('lake-name').textContent = 'Sjön hittades inte'; return; }
 
@@ -228,60 +267,96 @@ async function initLakePage() {
   document.getElementById('lake-county').textContent = lake.county;
 
   let selectedFish = null;
-  const grid    = document.getElementById('fish-grid');
-  const selWrap = document.getElementById('selected-wrap');
-  const selName = document.getElementById('selected-fish-name');
-  const startBtn= document.getElementById('btn-start');
-  const countTxt= document.getElementById('fish-count-text');
-  const srcBadge= document.getElementById('source-badge');
+  const fishGrid   = document.getElementById('fish-grid');
+  const fishSkel   = document.getElementById('fish-skeleton');
+  const selWrap    = document.getElementById('selected-wrap');
+  const selName    = document.getElementById('selected-fish-name');
+  const selEmoji   = document.getElementById('selected-fish-emoji');
+  const startBtn   = document.getElementById('btn-start');
+  const countTxt   = document.getElementById('fish-count-text');
+  const srcBadge   = document.getElementById('source-badge');
 
-  // Hämta fisk från GBIF
+  // Visa skeleton
+  fishSkel.style.display = 'flex';
+
   let fish = [];
   try {
     fish = await fetchFishForLake(lake.lat, lake.lng);
-    srcBadge.style.display = fish.length ? 'inline' : 'none';
+    srcBadge.style.display = fish.length ? 'inline-flex' : 'none';
   } catch { fish = []; }
 
   if (!fish.length) fish = [
-    {id:'gadda',name:'Gädda',desc:''},{id:'abborre',name:'Abborre',desc:''},{id:'gos',name:'Gösen',desc:''}
+    {id:'gadda',name:'Gädda',tag:'Vanlig'},{id:'abborre',name:'Abborre',tag:'Vanlig'},{id:'gos',name:'Gösen',tag:'Vanlig'}
   ];
 
-  countTxt.textContent = `🐟 ${fish.length} fiskarter registrerade`;
+  countTxt.textContent    = `🐟 ${fish.length} fiskarter registrerade`;
+  fishSkel.style.display = 'none';
+  fishGrid.style.display = 'grid';
 
-  setupFishGridCallback(fish, f => {
-    selectedFish = selectedFish?.id === f.id ? null : f;
-    grid.innerHTML = renderFishGrid(fish, null, selectedFish?.id);
-    if (selectedFish) {
-      selWrap.style.display = 'block';
-      selName.textContent   = selectedFish.name;
-    } else {
-      selWrap.style.display = 'none';
-    }
-  });
-  grid.innerHTML = renderFishGrid(fish, null, null);
+  function renderFish() {
+    fishGrid.innerHTML = fish.map(f => `
+      <div class="fish-card ${selectedFish?.id === f.id ? 'selected' : ''}" data-id="${f.id}"
+           style="display:flex;flex-direction:column;align-items:center;padding:18px 12px;cursor:pointer;border-radius:var(--radius-lg);background:var(--surface);border:1.5px solid ${selectedFish?.id===f.id?'var(--accent)':'var(--border-soft)'};transition:all .15s">
+        <div style="font-size:34px;margin-bottom:8px">${FISH_EMOJI[f.id] ?? '🐟'}</div>
+        <div style="font-weight:700;font-size:.85rem;color:${selectedFish?.id===f.id?'var(--accent)':'var(--text)'}">${f.name}</div>
+        <div style="font-size:.65rem;margin-top:4px;background:var(--surface-2);color:var(--text-3);border-radius:var(--radius-full);padding:2px 8px">${f.tag ?? 'Vanlig'}</div>
+      </div>`).join('');
+
+    fishGrid.querySelectorAll('.fish-card').forEach(card =>
+      card.addEventListener('click', () => {
+        selectedFish = selectedFish?.id === card.dataset.id
+          ? null
+          : fish.find(x => x.id === card.dataset.id);
+        renderFish();
+        if (selectedFish) {
+          selWrap.style.display = 'block';
+          selName.textContent   = selectedFish.name;
+          selEmoji.textContent  = FISH_EMOJI[selectedFish.id] ?? '🐟';
+        } else {
+          selWrap.style.display = 'none';
+        }
+      }));
+  }
+  renderFish();
 
   startBtn.addEventListener('click', () => {
     if (!selectedFish) return;
+
+    // Knapp-animation → fishing state
+    startBtn.textContent = '🟢 Fiske pågår…';
+    startBtn.classList.remove('btn-pulse');
+    startBtn.classList.add('btn-fishing');
+
     sessionStorage.setItem('selectedFish', JSON.stringify(selectedFish));
-    location.href = `session.html?lakeId=${lake.id}&fishId=${selectedFish.id}`;
+    setTimeout(() => location.href = `session.html?lakeId=${lake.id}&fishId=${selectedFish.id}`, 600);
   });
 }
 
-// ── Sessionssida ────────────────────────────────────────────────
+// ── Sessionssida ──────────────────────────────────────────────────
 async function initSessionPage() {
-  const params   = new URLSearchParams(location.search);
-  const lake     = JSON.parse(sessionStorage.getItem('selectedLake') || 'null')
+  const params = new URLSearchParams(location.search);
+  const lake   = JSON.parse(sessionStorage.getItem('selectedLake') || 'null')
     ?? SEED_LAKES.find(l => l.id === params.get('lakeId'));
-  const fish     = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
+  const fish   = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
 
-  document.getElementById('session-lake').textContent = lake?.name ?? 'Okänd sjö';
-  document.getElementById('session-fish').textContent = fish?.name ?? 'Okänd fisk';
-  document.getElementById('session-time').textContent = new Date().toLocaleDateString('sv-SE',
-    {weekday:'long',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('session-lake').textContent       = lake?.name ?? 'Okänd sjö';
+  document.getElementById('session-fish').textContent       = fish?.name ?? 'Okänd fisk';
+  document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
+  document.getElementById('session-time').textContent       =
+    new Date().toLocaleDateString('sv-SE',{weekday:'long',hour:'2-digit',minute:'2-digit'});
 
   const sb = getSupabase();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { location.href = 'auth.html'; return; }
+
+  // Spara session
+  sb.from('sessions').insert({
+    user_id:          user.id,
+    lake_id:          lake?.id ?? 'unknown',
+    lake_name:        lake?.name ?? '?',
+    target_fish_id:   fish?.id ?? 'unknown',
+    target_fish_name: fish?.name ?? '?',
+  }).then(() => {});
 
   const [{ data: rods }, { data: lures }] = await Promise.all([
     sb.from('rods').select('*').eq('user_id', user.id),
@@ -298,11 +373,48 @@ async function initSessionPage() {
       }),
     });
     if (res.status === 401) { location.href = 'auth.html'; return; }
-    const rec = await res.json();
-    renderRecommendations(rec);
+    renderRecommendations(await res.json());
   } catch {
     document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('error-state').style.display   = 'block';
-    document.getElementById('error-state').textContent     = 'Kunde inte hämta rekommendationer.';
+    const err = document.getElementById('error-state');
+    err.style.display  = 'block';
+    err.textContent    = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
   }
+}
+
+// ── Historik ──────────────────────────────────────────────────────
+async function initHistoryPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const { data: sessions } = await sb.from('sessions')
+    .select('*').eq('user_id', user.id)
+    .order('started_at', { ascending: false }).limit(30);
+
+  document.getElementById('hist-skeleton').style.display = 'none';
+
+  if (!sessions?.length) {
+    document.getElementById('hist-empty').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('hist-content').style.display = 'block';
+  document.getElementById('hist-list').innerHTML = sessions.map(s => {
+    const date = new Date(s.started_at).toLocaleDateString('sv-SE',
+      {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    return `
+      <div class="session-hist-card card-interactive"
+           onclick="sessionStorage.setItem('selectedLake',JSON.stringify({id:'${s.lake_id}',name:'${s.lake_name}',lat:0,lng:0,county:''}));location.href='session.html?lakeId=${s.lake_id}&fishId=${s.target_fish_id}'">
+        <div>
+          <div style="font-weight:700;font-size:.9rem">${s.lake_name}</div>
+          <div class="sh-fish-row">
+            <span>${FISH_EMOJI[s.target_fish_id] ?? '🐟'}</span>
+            <span style="font-size:.8rem;color:var(--text-2)">${s.target_fish_name}</span>
+          </div>
+          <div class="text-xs" style="color:var(--text-3);margin-top:4px">${date}</div>
+        </div>
+        <span class="sh-badge">→</span>
+      </div>`;
+  }).join('');
 }
