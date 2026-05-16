@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Curious Ember – Välj fisk</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main style="padding:24px 16px 16px">
+  <button onclick="history.back()" style="background:none;border:none;color:#0284c7;font-weight:600;font-size:15px;cursor:pointer;margin-bottom:16px;padding:0">← Tillbaka</button>
+
+  <div style="margin-bottom:8px">
+    <h1 id="lake-name" style="font-size:22px;font-weight:700;color:#075985">Laddar…</h1>
+    <p id="lake-county" style="color:#6b7280"></p>
+  </div>
+
+  <div id="fish-count-badge" style="background:#e0f2fe;border-radius:14px;padding:10px 16px;margin-bottom:20px;font-size:13px;color:#075985;display:flex;justify-content:space-between;align-items:center">
+    <span id="fish-count-text">🐟 Hämtar fiskarter…</span>
+    <span id="source-badge" class="badge" style="display:none">via Artportalen</span>
+  </div>
+
+  <h2 style="font-weight:600;color:#374151;margin-bottom:12px">Vad vill du fiska?</h2>
+
+  <div id="fish-grid" class="fish-grid"></div>
+
+  <div id="selected-wrap" style="display:none;position:sticky;bottom:80px;margin-top:20px;background:linear-gradient(to top,#f9fafb 60%,transparent);padding-top:12px">
+    <div class="card card-body" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <span style="font-size:28px">🐟</span>
+      <div>
+        <p style="font-size:11px;color:#9ca3af">Du fiskar</p>
+        <p id="selected-fish-name" style="font-weight:700;font-size:16px"></p>
+      </div>
+    </div>
+    <button class="btn btn-ember btn-full" id="btn-start" style="font-size:17px">🎣 Starta fiske!</button>
+  </div>
+</main>
+
+<nav id="bottom-nav"></nav>
+<script type="module" src="script.js"></script>
+</body>
+</html>

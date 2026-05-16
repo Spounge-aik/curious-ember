@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Curious Ember – Fiske pågår</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main style="padding:24px 16px 16px">
+  <button onclick="history.back()" style="background:none;border:none;color:#0284c7;font-weight:600;font-size:15px;cursor:pointer;margin-bottom:16px;padding:0">← Tillbaka</button>
+
+  <!-- Session header -->
+  <div class="session-header" style="margin-bottom:20px">
+    <p class="label">Aktivt fiske</p>
+    <p class="lake-name" id="session-lake">Laddar…</p>
+    <div class="fish-row">
+      <span style="font-size:24px">🐟</span>
+      <span id="session-fish" style="font-weight:600"></span>
+    </div>
+    <p style="font-size:12px;color:#bae6fd;margin-top:8px" id="session-time"></p>
+  </div>
+
+  <!-- Laddar -->
+  <div id="loading-state" class="spinner">
+    <div style="font-size:36px;margin-bottom:8px">🤖</div>
+    <p>Hämtar AI-rekommendationer…</p>
+    <p style="font-size:12px;margin-top:4px;color:#d1d5db">Analyserar ditt utrustningsbibliotek</p>
+  </div>
+
+  <!-- Fel -->
+  <div id="error-state" style="display:none" class="alert-error"></div>
+
+  <!-- Rekommendationer -->
+  <div id="rec-content" style="display:none">
+
+    <!-- Tips -->
+    <div id="tip-box" class="alert-tip" style="margin-bottom:20px;display:none">
+      <p style="font-weight:600;margin-bottom:4px">💡 Tips</p>
+      <p id="tip-text"></p>
+    </div>
+
+    <!-- Spön -->
+    <div id="rods-section" style="display:none;margin-bottom:20px">
+      <p class="section-title">🎣 Rekommenderade spön</p>
+      <div id="rods-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- Beten -->
+    <div id="lures-section" style="display:none;margin-bottom:20px">
+      <p class="section-title">🪝 Rekommenderade beten</p>
+      <div id="lures-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- Inget -->
+    <div id="empty-rec" style="display:none" class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>Inga rekommendationer kunde ges.</p>
+      <p style="font-size:13px;margin-top:4px">Lägg till utrustning i ditt bibliotek!</p>
+    </div>
+  </div>
+</main>
+
+<nav id="bottom-nav"></nav>
+<script type="module" src="script.js"></script>
+</body>
+</html>
