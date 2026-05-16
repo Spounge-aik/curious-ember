@@ -8,33 +8,37 @@
 </head>
 <body>
 
-<main style="padding:24px 16px 16px">
-  <button onclick="history.back()" style="background:none;border:none;color:#0284c7;font-weight:600;font-size:15px;cursor:pointer;margin-bottom:16px;padding:0">← Tillbaka</button>
+<main style="padding:28px 16px 16px">
+
+  <button class="back-btn" onclick="history.back()" style="margin-bottom:20px">← Tillbaka</button>
 
   <div style="margin-bottom:8px">
-    <h1 id="lake-name" style="font-size:22px;font-weight:700;color:#075985">Laddar…</h1>
-    <p id="lake-county" style="color:#6b7280"></p>
+    <h1 id="lake-name" style="font-size:1.4rem">Laddar…</h1>
+    <p id="lake-county" class="text-muted text-sm" style="margin-top:2px"></p>
   </div>
 
-  <div id="fish-count-badge" style="background:#e0f2fe;border-radius:14px;padding:10px 16px;margin-bottom:20px;font-size:13px;color:#075985;display:flex;justify-content:space-between;align-items:center">
-    <span id="fish-count-text">🐟 Hämtar fiskarter…</span>
-    <span id="source-badge" class="badge" style="display:none">via Artportalen</span>
+  <!-- Fisk-räknare -->
+  <div id="fish-count-badge" style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:24px">
+    <span id="fish-count-text" class="text-sm" style="color:var(--text-2)">🐟 Hämtar fiskarter från Artportalen…</span>
+    <span id="source-badge" class="badge" style="display:none">Artportalen</span>
   </div>
 
-  <h2 style="font-weight:600;color:#374151;margin-bottom:12px">Vad vill du fiska?</h2>
+  <h2 style="margin-bottom:14px;font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3)">Välj målfisk</h2>
 
   <div id="fish-grid" class="fish-grid"></div>
 
-  <div id="selected-wrap" style="display:none;position:sticky;bottom:80px;margin-top:20px;background:linear-gradient(to top,#f9fafb 60%,transparent);padding-top:12px">
+  <!-- Vald fisk + CTA -->
+  <div id="selected-wrap" style="display:none" class="cta-sticky">
     <div class="card card-body" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span style="font-size:28px">🐟</span>
+      <span style="font-size:26px">🐟</span>
       <div>
-        <p style="font-size:11px;color:#9ca3af">Du fiskar</p>
-        <p id="selected-fish-name" style="font-weight:700;font-size:16px"></p>
+        <p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.06em">Du fiskar</p>
+        <p id="selected-fish-name" style="font-weight:700;font-size:1rem;color:var(--accent)"></p>
       </div>
     </div>
-    <button class="btn btn-ember btn-full" id="btn-start" style="font-size:17px">🎣 Starta fiske!</button>
+    <button class="btn btn-primary btn-full btn-lg" id="btn-start">🎣 Starta fiske!</button>
   </div>
+
 </main>
 
 <nav id="bottom-nav"></nav>

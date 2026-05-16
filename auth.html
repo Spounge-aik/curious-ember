@@ -8,26 +8,30 @@
 </head>
 <body>
 
-<main style="padding:60px 24px 24px;max-width:380px;margin:0 auto">
-  <div style="text-align:center;margin-bottom:32px">
-    <div style="font-size:52px;margin-bottom:10px">🔥</div>
-    <h1 style="font-size:22px;font-weight:700;color:#075985">Curious Ember</h1>
-    <p id="mode-subtitle" style="color:#6b7280;margin-top:6px">Logga in för att fortsätta</p>
+<main style="padding:64px 24px 24px;max-width:380px;margin:0 auto">
+
+  <div style="text-align:center;margin-bottom:40px">
+    <div style="font-size:48px;margin-bottom:12px">🔥</div>
+    <h1 style="font-size:1.3rem;letter-spacing:-.01em">Curious Ember</h1>
+    <p id="mode-subtitle" class="text-muted text-sm" style="margin-top:6px">Logga in för att fortsätta</p>
   </div>
 
-  <div id="error-msg" class="alert-error" style="display:none;margin-bottom:16px"></div>
-  <div id="success-msg" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:12px 16px;font-size:14px;color:#166534;display:none;margin-bottom:16px"></div>
+  <div id="error-msg" class="alert alert-error" style="display:none;margin-bottom:16px"></div>
+  <div id="success-msg" class="alert alert-success" style="display:none;margin-bottom:16px"></div>
 
   <div style="display:flex;flex-direction:column;gap:12px">
     <input type="email" id="email" placeholder="E-postadress" autocomplete="email">
     <input type="password" id="password" placeholder="Lösenord" autocomplete="current-password">
-    <button class="btn btn-ember btn-full" id="btn-submit" style="font-size:16px">Logga in</button>
+    <button class="btn btn-primary btn-full btn-lg" id="btn-submit">Logga in</button>
   </div>
 
-  <p style="text-align:center;font-size:14px;color:#6b7280;margin-top:24px">
+  <div class="divider" style="margin:24px 0"></div>
+
+  <p style="text-align:center;font-size:.78rem;color:var(--text-3)">
     <span id="mode-switch-text">Inget konto?</span>
-    <button id="btn-mode" style="background:none;border:none;color:#0284c7;font-weight:600;cursor:pointer;font-size:14px;margin-left:4px">Registrera dig</button>
+    <button id="btn-mode" style="background:none;border:none;color:var(--accent);font-family:inherit;font-weight:700;cursor:pointer;font-size:.78rem;margin-left:6px">Registrera dig</button>
   </p>
+
 </main>
 
 <script type="module" src="script.js"></script>
