@@ -19,6 +19,7 @@ export function initLibrary() {
   const sb = getSupabase();
   _sbRef = sb;
   loadItems(sb);
+  loadCounts(sb); // visa båda räknare direkt
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -135,6 +136,17 @@ async function confirmCrop(sb) {
 
     await analyzePromise;
   }, 'image/jpeg', 0.88);
+}
+
+async function loadCounts(sb) {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  const [{ count: rc }, { count: lc }] = await Promise.all([
+    sb.from('rods').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    sb.from('lures').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+  ]);
+  document.getElementById('rod-count').textContent  = rc ?? 0;
+  document.getElementById('lure-count').textContent = lc ?? 0;
 }
 
 async function loadItems(sb) {
