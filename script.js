@@ -761,7 +761,9 @@ async function initSessionPage() {
       sessionStorage.setItem('selectedFish',
         JSON.stringify({ id: s.target_fish_id, name: s.target_fish_name }));
 
-      initDepthMap(s.lake_id);
+      const histFish    = { id: s.target_fish_id, name: s.target_fish_name };
+      const histWeather = {};
+      initDepthMap(s.lake_id, histFish, histWeather);
 
       if (s.recommendations) {
         renderRecommendations(s.recommendations);
@@ -786,7 +788,11 @@ async function initSessionPage() {
   document.getElementById('session-time').textContent       =
     new Date().toLocaleDateString('sv-SE', { weekday:'long', hour:'2-digit', minute:'2-digit' });
 
-  initDepthMap(lake?.id);
+  const weatherRef = {};
+  if (lake?.lat && lake?.lng) {
+    fetchWeather(lake.lat, lake.lng).then(w => { if (w) weatherRef.current = w; });
+  }
+  initDepthMap(lake?.id, fish, weatherRef);
 
   const [{ data: rods }, { data: lures }] = await Promise.all([
     sb.from('rods').select('*').eq('user_id', user.id),
@@ -835,7 +841,15 @@ async function initSessionPage() {
 }
 
 // ── Djupkarta (sessionssidan) ─────────────────────────────────────
-function initDepthMap(lakeId) {
+function getSeason() {
+  const m = new Date().getMonth() + 1;
+  if (m >= 3 && m <= 5)  return 'Vår';
+  if (m >= 6 && m <= 8)  return 'Sommar';
+  if (m >= 9 && m <= 11) return 'Höst';
+  return 'Vinter';
+}
+
+function initDepthMap(lakeId, fish, weatherRef) {
   const lake    = SEED_LAKES.find(l => l.id === lakeId);
   if (!lake?.smhiId) return;
   const section = document.getElementById('depth-map-section');
@@ -874,6 +888,82 @@ function initDepthMap(lakeId) {
     };
     imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Djupkarta saknas för denna sjö</span>'; };
     imgEl.src     = `/maps/${lakeId}.png`;
+  });
+
+  // ── Analysera fiskeplatser ────────────────────────────────────────
+  const btnSpots    = document.getElementById('btn-analyze-spots');
+  const spotsResult = document.getElementById('spots-result');
+  const spotsLoad   = document.getElementById('spots-loading');
+  const spotsList   = document.getElementById('spots-list');
+  if (!btnSpots) return;
+
+  btnSpots.addEventListener('click', async () => {
+    if (!isAiEnabled()) {
+      spotsResult.style.display = 'block';
+      spotsList.innerHTML = '<p class="text-sm text-muted" style="padding:8px 0">Slå på AI-knappen (✨) i toppen för att använda denna funktion.</p>';
+      return;
+    }
+
+    btnSpots.disabled = true;
+    btnSpots.innerHTML = '<i data-lucide="loader" class="icon" style="animation:spin 1s linear infinite"></i> Analyserar…';
+    if (window.lucide) lucide.createIcons();
+    spotsResult.style.display = 'block';
+    spotsLoad.style.display   = 'block';
+    spotsList.innerHTML       = '';
+
+    try {
+      // Hämta kartan som base64
+      let mapBase64 = null;
+      try {
+        const imgResp = await fetch(`/maps/${lakeId}.png`);
+        const blob    = await imgResp.blob();
+        mapBase64 = await new Promise(r => {
+          const reader = new FileReader();
+          reader.onload = () => r(reader.result.split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+      } catch { /* kör utan bild */ }
+
+      const fd = FISH_DATA[fish?.id] ?? {};
+      const fishDataStr = `Bästa säsong: ${fd.season ?? '?'}, aktivast: ${fd.time ?? '?'}, optimaltemperatur: ${fd.optTemp?.[0] ?? '?'}–${fd.optTemp?.[1] ?? '?'}°C, maxvind: ${fd.goodWind?.[1] ?? '?'} m/s.`;
+
+      const resp = await fetch('/api/analyze-spots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fishName:  fish?.name ?? 'Okänd fisk',
+          fishData:  fishDataStr,
+          lakeName:  lake.name,
+          weather:   weatherRef?.current ?? null,
+          season:    getSeason(),
+          mapBase64,
+        }),
+      });
+
+      const data = await resp.json();
+      spotsLoad.style.display = 'none';
+
+      if (!resp.ok || !data.spots) {
+        spotsList.innerHTML = `<p class="text-sm" style="color:var(--error);padding:8px 0">${data.error ?? 'Analys misslyckades'}</p>`;
+        return;
+      }
+
+      spotsList.innerHTML = data.spots.map((s, i) => `
+        <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px;border-left:3px solid var(--accent)">
+          <div style="font-weight:700;font-size:.85rem;margin-bottom:4px;color:var(--accent)">
+            ${['①','②','③'][i] ?? (i+1+'.')} ${s.name}
+          </div>
+          <div style="font-size:.78rem;color:var(--text-2);line-height:1.5">${s.description}</div>
+        </div>`).join('');
+
+    } catch (e) {
+      spotsLoad.style.display = 'none';
+      spotsList.innerHTML = `<p class="text-sm" style="color:var(--error);padding:8px 0">Fel: ${e.message}</p>`;
+    } finally {
+      btnSpots.disabled = false;
+      btnSpots.innerHTML = '<i data-lucide="sparkles" style="width:15px;height:15px;color:var(--accent)"></i> Analysera fiskeplatser';
+      if (window.lucide) lucide.createIcons();
+    }
   });
 }
 

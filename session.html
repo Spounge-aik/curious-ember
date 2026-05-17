@@ -92,6 +92,21 @@
              style="display:none;width:100%;height:auto;border-radius:12px;cursor:zoom-in">
         <p style="font-size:.65rem;color:var(--text-3);margin-top:8px">Källa: SMHI SVAR · Lantmäteriet · Tryck för att zooma</p>
       </div>
+
+      <!-- Analysera fiskeplatser -->
+      <div style="padding:0 12px 14px">
+        <button id="btn-analyze-spots" class="btn btn-surface btn-full" style="gap:8px">
+          <i data-lucide="sparkles" style="width:15px;height:15px;color:var(--accent)"></i>
+          Analysera fiskeplatser
+        </button>
+      </div>
+
+      <div id="spots-result" style="display:none;padding:0 12px 14px">
+        <div id="spots-loading" style="display:none;text-align:center;padding:16px 0;font-size:.8rem;color:var(--text-2)">
+          <i data-lucide="loader" class="icon" style="animation:spin 1s linear infinite"></i> Analyserar karta…
+        </div>
+        <div id="spots-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
     </div>
   </div>
 
