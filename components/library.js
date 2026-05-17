@@ -7,6 +7,14 @@ let imageUrl   = null;
 let _cropperInstance = null;
 let _sbRef = null;
 
+// ── Filterstatus ───────────────────────────────────────────────────
+let filterFish  = new Set();
+let filterType  = new Set();
+let searchQuery = '';
+let _allLures   = []; // orfiltrerat, för chips
+
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
 export function initLibrary() {
   const sb = getSupabase();
   _sbRef = sb;
@@ -17,8 +25,18 @@ export function initLibrary() {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentTab = btn.dataset.tab;
+      // Återställ filter vid flikbyte
+      filterFish.clear(); filterType.clear(); searchQuery = '';
+      const s = document.getElementById('filter-search');
+      if (s) s.value = '';
       loadItems(sb);
     });
+  });
+
+  // Sökfält
+  document.getElementById('filter-search')?.addEventListener('input', e => {
+    searchQuery = e.target.value.toLowerCase().trim();
+    renderGroupedLures(_allLures, sb);
   });
 
   document.getElementById('btn-add').addEventListener('click', () => openModal(null));
@@ -123,10 +141,12 @@ async function loadItems(sb) {
   const grid    = document.getElementById('item-grid');
   const spinner = document.getElementById('list-spinner');
   const empty   = document.getElementById('empty-lib');
+  const filterSection = document.getElementById('filter-section');
 
-  grid.style.display  = 'none';
-  empty.style.display = 'none';
+  grid.style.display    = 'none';
+  empty.style.display   = 'none';
   spinner.style.display = 'block';
+  if (filterSection) filterSection.style.display = currentTab === 'lures' ? 'block' : 'none';
 
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { location.href = 'auth.html'; return; }
@@ -145,33 +165,142 @@ async function loadItems(sb) {
     return;
   }
 
-  grid.style.display = 'grid';
-  grid.innerHTML = items.map(item => itemCard(item)).join('');
-
-  grid.querySelectorAll('[data-edit]').forEach(btn =>
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      openModal(items.find(i => i.id === btn.dataset.edit));
-    }));
-  grid.querySelectorAll('[data-del]').forEach(btn =>
-    btn.addEventListener('click', async e => {
-      e.stopPropagation();
-      await sb.from(currentTab).delete().eq('id', btn.dataset.del);
-      loadItems(sb);
-    }));
+  if (currentTab === 'lures') {
+    _allLures = items;
+    renderGroupedLures(items, sb);
+  } else {
+    renderRods(items, sb);
+  }
 }
 
-function itemCard(item) {
-  const isLure = currentTab === 'lures';
+// ── Spön – vanligt rutnät ─────────────────────────────────────────
+function renderRods(items, sb) {
+  const grid  = document.getElementById('item-grid');
+  const empty = document.getElementById('empty-lib');
+  empty.style.display = 'none';
+  grid.className      = 'equipment-grid';
+  grid.style.display  = 'grid';
+  grid.innerHTML      = items.map(item => lureCard(item, false)).join('');
+  attachActions(grid, items, sb);
+}
+
+// ── Beten – grupperat per fiskart → betestyp ──────────────────────
+function renderGroupedLures(items, sb) {
+  const grid  = document.getElementById('item-grid');
+  const empty = document.getElementById('empty-lib');
+
+  buildFilterChips(items, sb);
+
+  // Applicera filter
+  const filtered = items.filter(l => {
+    if (searchQuery && !l.name.toLowerCase().includes(searchQuery) &&
+        !(l.description ?? '').toLowerCase().includes(searchQuery)) return false;
+    if (filterFish.size > 0 && !l.tags?.some(t => filterFish.has(t.toLowerCase()))) return false;
+    if (filterType.size > 0 && !filterType.has((l.type ?? '').toLowerCase())) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    grid.style.display  = 'none';
+    empty.style.display = 'block';
+    document.getElementById('empty-icon').textContent = '🪝';
+    document.getElementById('empty-text').textContent = 'Inga beten matchar filtret';
+    return;
+  }
+
+  // Bygg grupper: fiskart → typ → [beten]
+  const groups  = new Map(); // fish → Map(type → item[])
+  const noFish  = [];
+
+  for (const lure of filtered) {
+    const fishTags = (lure.tags ?? []).map(t => t.toLowerCase()).filter(Boolean);
+    if (!fishTags.length) {
+      noFish.push(lure);
+    } else {
+      for (const fish of fishTags) {
+        if (!groups.has(fish)) groups.set(fish, new Map());
+        const typeKey = (lure.type || 'Övrigt').toLowerCase();
+        if (!groups.get(fish).has(typeKey)) groups.get(fish).set(typeKey, []);
+        groups.get(fish).get(typeKey).push(lure);
+      }
+    }
+  }
+
+  let html = '';
+
+  // Sortera fiskarter alfabetiskt
+  for (const [fish, typeMap] of [...groups.entries()].sort()) {
+    const total = new Set([...typeMap.values()].flat().map(l => l.id)).size;
+    html += `<div class="lib-fish-section">
+      <div class="lib-fish-header">
+        <span>${cap(fish)}</span>
+        <span class="lib-fish-count">${total} ${total === 1 ? 'bete' : 'beten'}</span>
+      </div>`;
+
+    for (const [type, lures] of [...typeMap.entries()].sort()) {
+      html += `<p class="lib-type-header">${cap(type)}</p>
+        <div class="equipment-grid">${lures.map(l => lureCard(l, true)).join('')}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (noFish.length) {
+    html += `<div class="lib-fish-section">
+      <div class="lib-fish-header">
+        <span>Utan kategori</span>
+        <span class="lib-fish-count">${noFish.length}</span>
+      </div>
+      <div class="equipment-grid">${noFish.map(l => lureCard(l, true)).join('')}</div>
+    </div>`;
+  }
+
+  empty.style.display = 'none';
+  grid.className      = '';
+  grid.style.display  = 'block';
+  grid.innerHTML      = html;
+  attachActions(grid, filtered, sb);
+}
+
+// ── Filterknappar ─────────────────────────────────────────────────
+function buildFilterChips(items, sb) {
+  const fishSet = new Set();
+  const typeSet = new Set();
+  items.forEach(l => {
+    (l.tags ?? []).forEach(t => t && fishSet.add(t.toLowerCase()));
+    if (l.type) typeSet.add(l.type.toLowerCase());
+  });
+
+  const renderChips = (containerId, wrapId, dataSet, activeSet, onToggle) => {
+    const wrap = document.getElementById(wrapId);
+    const cont = document.getElementById(containerId);
+    if (!dataSet.size) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    cont.innerHTML = [...dataSet].sort().map(v =>
+      `<button class="filter-chip ${activeSet.has(v) ? 'active' : ''}" data-val="${v}">${cap(v)}</button>`
+    ).join('');
+    cont.querySelectorAll('.filter-chip').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const v = btn.dataset.val;
+        activeSet.has(v) ? activeSet.delete(v) : activeSet.add(v);
+        onToggle();
+      }));
+  };
+
+  renderChips('filter-fish-chips', 'filter-fish-wrap', fishSet, filterFish,
+    () => renderGroupedLures(_allLures, sb));
+  renderChips('filter-type-chips', 'filter-type-wrap', typeSet, filterType,
+    () => renderGroupedLures(_allLures, sb));
+}
+
+// ── Kort-mall ─────────────────────────────────────────────────────
+function lureCard(item, isLure) {
   const imgContent = item.image_url
     ? `<img src="${item.image_url}" alt="${item.name}">`
     : `<span style="font-size:36px">${isLure ? '🪝' : '🎣'}</span>`;
-
   const chips = isLure
     ? [item.color, item.size, item.type].filter(Boolean)
         .map(v => `<span class="lure-chip">${v}</span>`).join('')
     : '';
-
   return `
     <div class="lure-card card-interactive">
       <div class="lure-img-wrap">
@@ -181,13 +310,29 @@ function itemCard(item) {
       <div class="lure-body">
         <div class="lure-name">${item.name}</div>
         ${item.description ? `<div class="lure-reason">${item.description}</div>` : ''}
-        ${(item.tags||[]).length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${item.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
         <div style="display:flex;gap:6px;margin-top:10px">
           <button class="btn btn-ghost btn-sm" data-edit="${item.id}" style="flex:1">Redigera</button>
           <button class="btn btn-sm" data-del="${item.id}" style="flex:1;background:var(--error-dim);color:var(--error);border-radius:var(--radius-sm)">Ta bort</button>
         </div>
       </div>
     </div>`;
+}
+
+// ── Koppla redigera/ta bort ───────────────────────────────────────
+function attachActions(container, items, sb) {
+  container.querySelectorAll('[data-edit]').forEach(btn =>
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openModal(items.find(i => i.id === btn.dataset.edit));
+    }));
+  container.querySelectorAll('[data-del]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const card = btn.closest('.lure-card');
+      if (card) { card.style.opacity = '0'; card.style.transition = 'opacity .2s'; }
+      await sb.from(currentTab).delete().eq('id', btn.dataset.del);
+      setTimeout(() => loadItems(sb), 220);
+    }));
 }
 
 function openModal(item) {

@@ -571,6 +571,61 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
 .eq-preview-name { font-weight: 700; font-size: .78rem; }
 .eq-preview-meta { font-size: .65rem; color: var(--text-3); margin-top: 2px; }
 
+/* ── Filterknappar ─────────────────────────────── */
+.filter-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.filter-chip {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(249,115,22,.3);
+}
+
+/* ── Betesbibliotek – gruppering ───────────────── */
+.lib-fish-section { margin-bottom: 24px; }
+.lib-fish-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: .85rem;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 12px;
+}
+.lib-fish-count {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--surface-2);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.lib-type-header {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 14px 0 8px;
+}
+
 /* ── Fiskinfo-panel (expanderat kort) ─────────── */
 .fish-info-card {
   background: var(--surface);

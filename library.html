@@ -34,6 +34,19 @@
     </button>
   </div>
 
+  <!-- Sök + filter (visas bara för beten) -->
+  <div id="filter-section" style="display:none;margin-bottom:16px">
+    <input type="search" id="filter-search" placeholder="Sök bete…" autocomplete="off" style="margin-bottom:12px">
+    <div id="filter-fish-wrap" style="display:none">
+      <p class="section-title" style="margin-bottom:8px">Fiskart</p>
+      <div id="filter-fish-chips" class="filter-chips"></div>
+    </div>
+    <div id="filter-type-wrap" style="display:none;margin-top:12px">
+      <p class="section-title" style="margin-bottom:8px">Betestyp</p>
+      <div id="filter-type-chips" class="filter-chips"></div>
+    </div>
+  </div>
+
   <div id="list-spinner">
     <div class="equipment-grid">
       <div class="skeleton skeleton-card"></div>
@@ -43,7 +56,7 @@
     </div>
   </div>
 
-  <div id="item-grid" class="equipment-grid" style="display:none"></div>
+  <div id="item-grid" style="display:none"></div>
 
   <div id="empty-lib" class="empty-state" style="display:none">
     <i data-lucide="fish" class="empty-icon-svg" id="empty-icon"></i>
