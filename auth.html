@@ -1,39 +1,62 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Curious Ember – Logga in</title>
+  <title>Fiskeappen – Logga in</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<main style="padding:64px 24px 24px;max-width:380px;margin:0 auto">
+<main style="min-height:100vh;max-width:380px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;padding:40px 24px">
 
-  <div style="text-align:center;margin-bottom:40px">
-    <div style="font-size:48px;margin-bottom:12px">🔥</div>
-    <h1 style="font-size:1.3rem;letter-spacing:-.01em">Curious Ember</h1>
-    <p id="mode-subtitle" class="text-muted text-sm" style="margin-top:6px">Logga in för att fortsätta</p>
+  <div class="text-center mb-10">
+    <div class="flex justify-center mb-4">
+      <i data-lucide="flame" style="width:52px;height:52px;color:var(--accent)"></i>
+    </div>
+    <h1 class="text-2xl font-bold tracking-tight">Fiskeappen</h1>
+    <p id="mode-subtitle" class="text-sm text-muted mt-2">Logga in för att fortsätta</p>
   </div>
 
-  <div id="error-msg" class="alert alert-error" style="display:none;margin-bottom:16px"></div>
-  <div id="success-msg" class="alert alert-success" style="display:none;margin-bottom:16px"></div>
+  <div id="error-msg" class="alert alert-error mb-4" style="display:none"></div>
+  <div id="success-msg" class="alert alert-success mb-4" style="display:none"></div>
 
-  <div style="display:flex;flex-direction:column;gap:12px">
+  <!-- Login / Register / Forgot -->
+  <div id="form-main" class="flex flex-col gap-3">
     <input type="email" id="email" placeholder="E-postadress" autocomplete="email">
     <input type="password" id="password" placeholder="Lösenord" autocomplete="current-password">
     <button class="btn btn-primary btn-full btn-lg" id="btn-submit">Logga in</button>
   </div>
 
+  <!-- Återställ lösenord (nytt lösenord efter e-postlänk) -->
+  <div id="form-reset" class="flex flex-col gap-3" style="display:none!important">
+    <input type="password" id="new-password"     placeholder="Nytt lösenord" autocomplete="new-password">
+    <input type="password" id="confirm-password" placeholder="Bekräfta lösenord" autocomplete="new-password">
+    <button class="btn btn-primary btn-full btn-lg" id="btn-reset">Spara nytt lösenord</button>
+  </div>
+
   <div class="divider" style="margin:24px 0"></div>
 
-  <p style="text-align:center;font-size:.78rem;color:var(--text-3)">
+  <p id="footer-links" class="text-center text-xs text-dimmed">
     <span id="mode-switch-text">Inget konto?</span>
-    <button id="btn-mode" style="background:none;border:none;color:var(--accent);font-family:inherit;font-weight:700;cursor:pointer;font-size:.78rem;margin-left:6px">Registrera dig</button>
+    <button id="btn-mode"
+            style="background:none;border:none;color:var(--accent);font-family:inherit;font-weight:700;cursor:pointer;font-size:.78rem;margin-left:6px">
+      Registrera dig
+    </button>
+  </p>
+
+  <p class="text-center mt-3" id="forgot-link-wrap">
+    <button id="btn-forgot"
+            style="background:none;border:none;color:var(--text-3);font-family:inherit;font-size:.75rem;cursor:pointer;text-decoration:underline">
+      Glömt lösenordet?
+    </button>
   </p>
 
 </main>
 
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>
