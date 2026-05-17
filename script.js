@@ -855,18 +855,9 @@ function initDepthMap(lakeId) {
 
     const loading = document.getElementById('depth-map-loading');
     const imgEl   = document.getElementById('depth-map-img');
-    try {
-      const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'HTTP ' + resp.status }));
-        throw new Error(err.error ?? 'HTTP ' + resp.status);
-      }
-      const blob   = await resp.blob();
-      imgEl.onload = () => { loading.style.display = 'none'; imgEl.style.display = 'block'; mapLoaded = true; };
-      imgEl.src    = URL.createObjectURL(blob);
-    } catch (e) {
-      loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
-    }
+    imgEl.onload  = () => { loading.style.display = 'none'; imgEl.style.display = 'block'; mapLoaded = true; };
+    imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Djupkarta saknas för denna sjö</span>'; };
+    imgEl.src     = `/maps/${lakeId}.png`;
   });
 }
 
