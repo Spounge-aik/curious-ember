@@ -571,6 +571,35 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
 .eq-preview-name { font-weight: 700; font-size: .78rem; }
 .eq-preview-meta { font-size: .65rem; color: var(--text-3); margin-top: 2px; }
 
+/* ── Fiskinfo-panel (expanderat kort) ─────────── */
+.fish-info-card {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  margin-bottom: 16px;
+  animation: fadeIn .2s ease-out both;
+}
+.fic-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.fic-name { font-weight: 700; font-size: .95rem; }
+.fic-sub  { font-size: .72rem; color: var(--text-3); margin-top: 2px; }
+.fic-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+.fic-row  {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .8rem;
+}
+.fic-row span:first-child { color: var(--text-2); }
+.fic-row span:last-child  { font-weight: 600; text-align: right; max-width: 55%; }
+
 /* ── Btn fishing state ─────────────────────────── */
 @keyframes fish-pulse { from { opacity:.5; } to { opacity:1; } }
 .btn-fishing {

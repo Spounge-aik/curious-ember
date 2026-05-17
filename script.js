@@ -52,6 +52,87 @@ const FISH_INFO = {
   regnbage: { name:'Regnbåge',         desc:'Inplanterad sportfisk',   tag:'Inplanterad' },
 };
 
+// ── Fiskdata per art ──────────────────────────────────────────────
+const FISH_DATA = {
+  gadda:    { season:'Vår & tidig höst',   time:'Gryning & förmiddag',   optTemp:[4,16],  goodWind:[0,5] },
+  abborre:  { season:'Sommar & höst',       time:'Gryning & skymning',    optTemp:[12,22], goodWind:[0,6] },
+  gos:      { season:'Sommar',              time:'Natt & tidig morgon',   optTemp:[18,25], goodWind:[0,4] },
+  lake:     { season:'Vinter & vår',        time:'Natt',                  optTemp:[0,10],  goodWind:[0,5] },
+  lax:      { season:'Vår & höst',          time:'Tidig morgon',          optTemp:[6,14],  goodWind:[1,6] },
+  oring:    { season:'Vår & höst',          time:'Gryning & kväll',       optTemp:[6,16],  goodWind:[1,5] },
+  rodding:  { season:'Vår & höst',          time:'Morgon & kväll',        optTemp:[4,14],  goodWind:[0,4] },
+  harr:     { season:'Vår & tidig sommar',  time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,4] },
+  regnbage: { season:'Hela året',           time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,5] },
+  mort:     { season:'Sommar',              time:'Förmiddag & kväll',     optTemp:[15,24], goodWind:[0,5] },
+  braxen:   { season:'Sommar',              time:'Tidig morgon & kväll',  optTemp:[16,24], goodWind:[0,4] },
+  karp:     { season:'Högsommar',           time:'Dag',                   optTemp:[18,26], goodWind:[0,3] },
+  rudor:    { season:'Sommar',              time:'Förmiddag',             optTemp:[18,26], goodWind:[0,4] },
+  id:       { season:'Vår & sommar',        time:'Morgon & kväll',        optTemp:[10,20], goodWind:[0,5] },
+  asp:      { season:'Vår & tidig sommar',  time:'Morgon',                optTemp:[12,20], goodWind:[0,5] },
+  sik:      { season:'Höst & vinter',       time:'Morgon & kväll',        optTemp:[4,12],  goodWind:[0,5] },
+  bjorkna:  { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
+  sarv:     { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
+};
+
+// ── Väder (SMHI MetFcst) ──────────────────────────────────────────
+let _weatherCache = {};
+async function fetchWeather(lat, lng) {
+  const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+  if (_weatherCache[key]) return _weatherCache[key];
+  try {
+    const url = `https://opendata-smhi.se/api/metfcst/v2/geotype/point/lon/${lng.toFixed(6)}/lat/${lat.toFixed(6)}/data.json`;
+    const r   = await fetch(url);
+    if (!r.ok) throw new Error('SMHI API fel');
+    const d   = await r.json();
+    const params = d.timeSeries?.[0]?.parameters ?? [];
+    const get    = name => params.find(p => p.name === name)?.values?.[0] ?? null;
+    const w = { temp: get('t'), wind: get('ws'), precip: get('pmean'), cloud: get('tcc_mean') };
+    _weatherCache[key] = w;
+    return w;
+  } catch { return null; }
+}
+
+function assessWeather(fishId, w) {
+  if (!w) return null;
+  const fd = FISH_DATA[fishId];
+  if (!fd) return null;
+  let score = 0;
+
+  // Temperatur (0–40 p)
+  if (w.temp !== null) {
+    const [lo, hi] = fd.optTemp;
+    if (w.temp >= lo && w.temp <= hi)         score += 40;
+    else if (w.temp < lo && lo - w.temp < 4)  score += 25;
+    else if (w.temp > hi && w.temp - hi < 4)  score += 25;
+    else if (Math.abs(w.temp - lo) < 8 || Math.abs(w.temp - hi) < 8) score += 10;
+  }
+  // Vind (0–30 p)
+  if (w.wind !== null) {
+    const [, wMax] = fd.goodWind;
+    if (w.wind <= wMax)            score += 30;
+    else if (w.wind <= wMax + 3)   score += 15;
+    else if (w.wind <= wMax + 6)   score += 5;
+  }
+  // Nederbörd (0–20 p)
+  if (w.precip !== null) {
+    if (w.precip < 0.1)       score += 20;
+    else if (w.precip < 0.5)  score += 12;
+    else if (w.precip < 2)    score += 4;
+  }
+
+  let rating, color;
+  if      (score >= 72) { rating = '⭐⭐⭐ Utmärkt';    color = 'var(--success)'; }
+  else if (score >= 50) { rating = '⭐⭐ Bra';          color = 'var(--accent)'; }
+  else if (score >= 28) { rating = '⭐ Måttlig';        color = '#f59e0b'; }
+  else                  { rating = '⚠️ Utmanande';      color = 'var(--error)'; }
+
+  const tempTxt = w.temp !== null ? `${w.temp}°C` : '';
+  const windTxt = w.wind !== null ? `${w.wind} m/s` : '';
+  const details = [tempTxt, windTxt].filter(Boolean).join(' · ');
+
+  return { rating, color, details };
+}
+
 async function fetchFishForLake(lat, lng, lake = null) {
   const MIN_OBS   = 5;
   const RADII     = [0.02, 0.04, 0.07]; // börja litet (~2km), utöka vid behov
@@ -388,14 +469,61 @@ function initHomePage() {
 
     fishGrid.querySelectorAll('.home-fish-card').forEach(card =>
       card.addEventListener('click', () => {
-        selectedFish = selectedFish?.id === card.dataset.fid
-          ? null
-          : allFish.find(f => f.id === card.dataset.fid);
+        const fish = allFish.find(f => f.id === card.dataset.fid);
+        if (!fish) return;
+        const same = selectedFish?.id === fish.id;
+        selectedFish = same ? null : fish;
         renderFishGrid();
-        if (selectedFish) {
-          setTimeout(() => selectFish(selectedFish), 180);
-        }
+        showFishPanel(selectedFish, selectedLake);
       }));
+  }
+
+  async function showFishPanel(fish, lake) {
+    const panel = document.getElementById('fish-info-panel');
+    if (!fish) { panel.style.display = 'none'; return; }
+
+    const fd = FISH_DATA[fish.id] ?? {};
+    panel.style.display = 'block';
+    panel.innerHTML = `
+      <div class="fish-info-card">
+        <div class="fic-header">
+          <span style="font-size:26px">${FISH_EMOJI[fish.id] ?? '🐟'}</span>
+          <div>
+            <div class="fic-name">${fish.name}</div>
+            <div class="fic-sub">${fish.tag ?? 'Vanlig'}</div>
+          </div>
+        </div>
+        <div class="fic-rows">
+          <div class="fic-row"><span>📅 Bästa säsong</span><span>${fd.season ?? '—'}</span></div>
+          <div class="fic-row"><span>⏰ Aktivast</span><span>${fd.time ?? '—'}</span></div>
+          <div class="fic-row" id="fic-weather-row">
+            <span>🌤️ Väder nu</span>
+            <span class="text-muted" style="font-size:.78rem">Hämtar…</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" id="btn-fish-select" style="margin-top:14px;font-size:1rem">
+          Välj ${fish.name}
+        </button>
+      </div>`;
+
+    document.getElementById('btn-fish-select').addEventListener('click', () => selectFish(fish));
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Hämta väder asynkront
+    if (lake) {
+      const w   = await fetchWeather(lake.lat, lake.lng);
+      const row = document.getElementById('fic-weather-row');
+      if (!row) return;
+      const a = assessWeather(fish.id, w);
+      row.innerHTML = a
+        ? `<span>🌤️ Väder nu</span>
+           <span style="color:${a.color};font-weight:700">${a.rating}</span>`
+        : `<span>🌤️ Väder nu</span><span class="text-muted">Ej tillgängligt</span>`;
+      if (a?.details) {
+        row.insertAdjacentHTML('afterend',
+          `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`);
+      }
+    }
   }
 
   function selectFish(fish) {
@@ -525,7 +653,9 @@ async function initLakePage() {
   function renderFish() {
     fishGrid.innerHTML = fish.map(f => `
       <div class="fish-card ${selectedFish?.id === f.id ? 'selected' : ''}" data-id="${f.id}"
-           style="display:flex;flex-direction:column;align-items:center;padding:18px 12px;cursor:pointer;border-radius:var(--radius-lg);background:var(--surface);border:1.5px solid ${selectedFish?.id===f.id?'var(--accent)':'var(--border-soft)'};transition:all .15s">
+           style="display:flex;flex-direction:column;align-items:center;padding:18px 12px;cursor:pointer;
+                  border-radius:var(--radius-lg);background:var(--surface);transition:all .15s;
+                  border:1.5px solid ${selectedFish?.id===f.id?'var(--accent)':'var(--border-soft)'}">
         <div style="font-size:34px;margin-bottom:8px">${FISH_EMOJI[f.id] ?? '🐟'}</div>
         <div style="font-weight:700;font-size:.85rem;color:${selectedFish?.id===f.id?'var(--accent)':'var(--text)'}">${f.name}</div>
         <div style="font-size:.65rem;margin-top:4px;background:var(--surface-2);color:var(--text-3);border-radius:var(--radius-full);padding:2px 8px">${f.tag ?? 'Vanlig'}</div>
@@ -533,32 +663,64 @@ async function initLakePage() {
 
     fishGrid.querySelectorAll('.fish-card').forEach(card =>
       card.addEventListener('click', () => {
-        selectedFish = selectedFish?.id === card.dataset.id
-          ? null
-          : fish.find(x => x.id === card.dataset.id);
+        const same = selectedFish?.id === card.dataset.id;
+        selectedFish = same ? null : fish.find(x => x.id === card.dataset.id);
         renderFish();
-        if (selectedFish) {
-          selWrap.style.display = 'block';
-          selName.textContent   = selectedFish.name;
-          selEmoji.textContent  = FISH_EMOJI[selectedFish.id] ?? '🐟';
-        } else {
-          selWrap.style.display = 'none';
-        }
+        showLakeFishPanel(selectedFish, lake);
       }));
   }
   renderFish();
 
-  startBtn.addEventListener('click', () => {
-    if (!selectedFish) return;
+  async function showLakeFishPanel(f, lake) {
+    if (!f) { selWrap.style.display = 'none'; return; }
+    const fd = FISH_DATA[f.id] ?? {};
 
-    // Knapp-animation → fishing state
-    startBtn.textContent = '🟢 Fiske pågår…';
-    startBtn.classList.remove('btn-pulse');
-    startBtn.classList.add('btn-fishing');
+    selWrap.style.display = 'block';
+    selWrap.innerHTML = `
+      <div class="fish-info-card">
+        <div class="fic-header">
+          <span style="font-size:26px">${FISH_EMOJI[f.id] ?? '🐟'}</span>
+          <div>
+            <div class="fic-name">${f.name}</div>
+            <div class="fic-sub">${f.tag ?? 'Vanlig'}</div>
+          </div>
+        </div>
+        <div class="fic-rows">
+          <div class="fic-row"><span>📅 Bästa säsong</span><span>${fd.season ?? '—'}</span></div>
+          <div class="fic-row"><span>⏰ Aktivast</span><span>${fd.time ?? '—'}</span></div>
+          <div class="fic-row" id="fic-weather-row">
+            <span>🌤️ Väder nu</span>
+            <span class="text-muted" style="font-size:.78rem">Hämtar…</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full btn-lg btn-pulse" id="btn-lake-start" style="margin-top:14px">
+          Välj ${f.name}
+        </button>
+      </div>`;
 
-    sessionStorage.setItem('selectedFish', JSON.stringify(selectedFish));
-    setTimeout(() => location.href = `session.html?lakeId=${lake.id}&fishId=${selectedFish.id}`, 600);
-  });
+    document.getElementById('btn-lake-start').addEventListener('click', () => {
+      const btn = document.getElementById('btn-lake-start');
+      btn.textContent = '🟢 Fiske pågår…';
+      btn.classList.remove('btn-pulse');
+      btn.classList.add('btn-fishing');
+      sessionStorage.setItem('selectedFish', JSON.stringify(f));
+      setTimeout(() => location.href = `session.html?lakeId=${lake.id}&fishId=${f.id}`, 600);
+    });
+
+    selWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    const w   = await fetchWeather(lake.lat, lake.lng);
+    const row = document.getElementById('fic-weather-row');
+    if (!row) return;
+    const a = assessWeather(f.id, w);
+    row.innerHTML = a
+      ? `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`
+      : `<span>🌤️ Väder nu</span><span class="text-muted">Ej tillgängligt</span>`;
+    if (a?.details) {
+      row.insertAdjacentHTML('afterend',
+        `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`);
+    }
+  }
 }
 
 // ── Sessionssida ──────────────────────────────────────────────────
