@@ -130,10 +130,10 @@
 </div>
 
 <!-- Avsluta tur – fast ovanför bottennav -->
-<div style="position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;
-            padding:0 16px;z-index:90">
+<div style="position:fixed;bottom:calc(72px + env(safe-area-inset-bottom));left:50%;
+            transform:translateX(-50%);z-index:90;width:calc(100% - 32px);max-width:480px">
   <button id="btn-end-session" class="btn btn-surface btn-full"
-          style="box-shadow:0 -2px 20px rgba(0,0,0,.5);border:1px solid var(--border-soft)">
+          style="box-shadow:0 4px 24px rgba(0,0,0,.45);border:1px solid var(--border-soft)">
     <i data-lucide="flag" class="icon"></i> Avsluta tur
   </button>
 </div>
