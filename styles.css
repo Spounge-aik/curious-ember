@@ -663,3 +663,108 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
   animation: fish-pulse 1s ease-in-out infinite alternate !important;
   cursor: default !important;
 }
+
+/* ── Fångstregistrering ────────────────────────── */
+
+/* Statistikgrid – 2 kolumner */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Enskilt statistikkort */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  padding: 16px 14px;
+  text-align: center;
+  transition: transform .15s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card-number {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-card-label {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+}
+.stat-card-fish {
+  font-size: .78rem;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* Fångst-listkort */
+.catch-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all .15s;
+}
+.catch-card:hover { border-color: var(--border); background: var(--surface-2); }
+
+/* Liten fångstbild */
+.catch-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-2);
+}
+
+/* Emoji-platshållare när bild saknas */
+.catch-emoji-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.catch-info { flex: 1; min-width: 0; }
+.catch-fish-name { font-weight: 700; font-size: .9rem; color: var(--text); }
+.catch-meta {
+  font-size: .72rem;
+  color: var(--text-3);
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.catch-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.catch-date {
+  font-size: .68rem;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+/* 4-kolumns bottom nav – smalare text för att passa */
+#bottom-nav a {
+  font-size: .55rem;
+}
+#bottom-nav .nav-icon {
+  width: 20px;
+  height: 20px;
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Fångster</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header" id="app-header"></header>
+
+<main class="page-content" style="padding:20px 16px">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold">Fångade fiskar</h1>
+    <p class="text-sm text-muted mt-1">Din fångsthistorik och statistik</p>
+  </div>
+
+  <!-- Skeleton loader -->
+  <div id="catches-skeleton">
+    <p class="section-title mb-3">Statistik</p>
+    <div class="stat-grid mb-6">
+      <div class="skeleton skeleton-card" style="height:90px"></div>
+      <div class="skeleton skeleton-card" style="height:90px"></div>
+      <div class="skeleton skeleton-card" style="height:90px"></div>
+      <div class="skeleton skeleton-card" style="height:90px"></div>
+    </div>
+    <p class="section-title mb-3">Fångster</p>
+    <div class="flex flex-col gap-3">
+      <div class="skeleton skeleton-card" style="height:80px"></div>
+      <div class="skeleton skeleton-card" style="height:80px"></div>
+      <div class="skeleton skeleton-card" style="height:80px"></div>
+    </div>
+  </div>
+
+  <!-- Innehåll -->
+  <div id="catches-content" style="display:none">
+
+    <!-- Statistik -->
+    <div class="mb-6">
+      <p class="section-title mb-3">Statistik</p>
+      <div id="catches-stat-grid" class="stat-grid"></div>
+    </div>
+
+    <!-- Lista -->
+    <div>
+      <p class="section-title mb-3">Alla fångster</p>
+      <div id="catches-list" class="flex flex-col gap-3"></div>
+    </div>
+
+  </div>
+
+  <!-- Tom-state -->
+  <div id="catches-empty" class="empty-state" style="display:none">
+    <i data-lucide="fish" class="empty-icon-svg"></i>
+    <p class="font-bold mb-1">Inga fångster registrerade ännu</p>
+    <p class="text-sm text-muted mb-5">Starta en fisketur och registrera din första fångst!</p>
+    <a href="index.html" class="btn btn-primary" style="text-decoration:none">
+      <i data-lucide="map" class="icon"></i> Hitta sjö
+    </a>
+  </div>
+
+</main>
+
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>

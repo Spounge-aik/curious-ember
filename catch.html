@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Registrera fångst</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header" id="app-header"></header>
+
+<main class="page-content" style="padding:20px 16px">
+
+  <button class="back-btn mb-5" onclick="history.back()">
+    <i data-lucide="chevron-left" class="icon"></i> Tillbaka
+  </button>
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold">Registrera fångst</h1>
+    <p class="text-sm text-muted mt-1">Spara din fångade fisk</p>
+  </div>
+
+  <!-- Foto-sektion -->
+  <div class="mb-5">
+    <p class="section-title mb-3">Foto (valfritt)</p>
+
+    <div id="catch-img-preview-wrap" style="display:none;position:relative;margin-bottom:12px">
+      <img id="catch-img-preview" src="" alt=""
+           style="width:100%;height:200px;object-fit:cover;background:var(--surface-2);border-radius:20px">
+      <button id="btn-clear-image"
+              style="position:absolute;top:8px;right:8px;background:rgba(18,24,36,.85);border:none;color:var(--text-2);border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <i data-lucide="x" style="width:15px;height:15px;stroke:currentColor"></i>
+      </button>
+    </div>
+
+    <div id="catch-img-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-surface" id="btn-catch-camera">
+        <i data-lucide="camera" class="icon"></i> Ta foto
+      </button>
+      <button class="btn btn-ghost" id="btn-catch-gallery">
+        <i data-lucide="image" class="icon"></i> Välj bild
+      </button>
+    </div>
+    <input type="file" id="catch-file-camera"  accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="catch-file-gallery" accept="image/*" style="display:none">
+  </div>
+
+  <!-- Formulär -->
+  <div class="flex flex-col gap-4">
+    <div>
+      <label class="section-title" for="catch-fish-name" style="display:block;margin-bottom:6px">Fiskart</label>
+      <input type="text" id="catch-fish-name" placeholder="Fiskart" autocomplete="off">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label class="section-title" for="catch-length" style="display:block;margin-bottom:6px">Längd (cm)</label>
+        <input type="number" id="catch-length" placeholder="cm" min="0" step="0.1">
+      </div>
+      <div>
+        <label class="section-title" for="catch-weight" style="display:block;margin-bottom:6px">Vikt (g)</label>
+        <input type="number" id="catch-weight" placeholder="g" min="0" step="1">
+      </div>
+    </div>
+
+    <div>
+      <label class="section-title" for="catch-datetime" style="display:block;margin-bottom:6px">Datum & tid</label>
+      <input type="datetime-local" id="catch-datetime">
+    </div>
+
+    <div id="catch-success-msg" class="alert alert-success" style="display:none">
+      <i data-lucide="check-circle" class="icon"></i> Fångst sparad!
+    </div>
+
+    <div id="catch-error-msg" class="alert alert-error" style="display:none"></div>
+
+    <button class="btn btn-primary btn-full btn-lg btn-pulse" id="btn-save-catch" style="margin-top:4px">
+      <i data-lucide="save" class="icon"></i> Spara fångst
+    </button>
+  </div>
+
+</main>
+
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>

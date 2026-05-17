@@ -303,10 +303,12 @@ async function guardAuth() {
 }
 
 function initPage() {
-  if (page === 'library.html') return initLibrary();
-  if (page === 'lake.html')    return initLakePage();
-  if (page === 'session.html') return initSessionPage();
-  if (page === 'history.html') return initHistoryPage();
+  if (page === 'library.html')  return initLibrary();
+  if (page === 'lake.html')     return initLakePage();
+  if (page === 'session.html')  return initSessionPage();
+  if (page === 'history.html')  return initHistoryPage();
+  if (page === 'catch.html')    return initCatchPage();
+  if (page === 'catches.html')  return initCatchesPage();
   initHomePage();
 }
 
@@ -860,3 +862,210 @@ async function initHistoryPage() {
 
   loadSessions();
 }
+
+// ── Fångstregistrering ────────────────────────────────────────────
+async function initCatchPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  // Förifyll fiskart från sessionStorage
+  const fish = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
+  const lake = JSON.parse(sessionStorage.getItem('selectedLake') || 'null');
+
+  const fishNameInput = document.getElementById('catch-fish-name');
+  const datetimeInput = document.getElementById('catch-datetime');
+
+  if (fish?.name) fishNameInput.value = fish.name;
+  datetimeInput.value = new Date().toISOString().slice(0, 16);
+
+  // ── Foto ──────────────────────────────────────
+  let catchImageFile = null;
+
+  const btnCamera   = document.getElementById('btn-catch-camera');
+  const btnGallery  = document.getElementById('btn-catch-gallery');
+  const fileCamera  = document.getElementById('catch-file-camera');
+  const fileGallery = document.getElementById('catch-file-gallery');
+  const previewWrap = document.getElementById('catch-img-preview-wrap');
+  const previewImg  = document.getElementById('catch-img-preview');
+  const btnClear    = document.getElementById('btn-clear-image');
+
+  function handleImageFile(file) {
+    if (!file) return;
+    catchImageFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewWrap.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  btnCamera.addEventListener('click',  () => fileCamera.click());
+  btnGallery.addEventListener('click', () => fileGallery.click());
+  fileCamera.addEventListener('change',  e => handleImageFile(e.target.files[0]));
+  fileGallery.addEventListener('change', e => handleImageFile(e.target.files[0]));
+  btnClear.addEventListener('click', () => {
+    catchImageFile = null;
+    previewImg.src = '';
+    previewWrap.style.display = 'none';
+    fileCamera.value  = '';
+    fileGallery.value = '';
+  });
+
+  // ── Spara ─────────────────────────────────────
+  document.getElementById('btn-save-catch').addEventListener('click', async () => {
+    const saveBtn   = document.getElementById('btn-save-catch');
+    const successEl = document.getElementById('catch-success-msg');
+    const errorEl   = document.getElementById('catch-error-msg');
+
+    const fishName = fishNameInput.value.trim();
+    if (!fishName) {
+      errorEl.textContent  = 'Ange fiskart.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    saveBtn.disabled    = true;
+    saveBtn.textContent = 'Sparar…';
+    errorEl.style.display = 'none';
+
+    // Ladda upp bild om det finns en
+    let imageUrl = null;
+    if (catchImageFile) {
+      try {
+        const ext      = catchImageFile.name.split('.').pop() || 'jpg';
+        const filePath = `${user.id}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await sb.storage
+          .from('catch-images')
+          .upload(filePath, catchImageFile, { upsert: true });
+        if (!uploadErr) {
+          const { data: urlData } = sb.storage.from('catch-images').getPublicUrl(filePath);
+          imageUrl = urlData?.publicUrl ?? null;
+        }
+      } catch { /* bilduppladdning är valfri, fortsätt utan */ }
+    }
+
+    const lengthVal   = document.getElementById('catch-length').value;
+    const weightVal   = document.getElementById('catch-weight').value;
+    const datetimeVal = document.getElementById('catch-datetime').value;
+
+    const { error } = await sb.from('catches').insert({
+      user_id:   user.id,
+      fish_name: fishName,
+      fish_id:   fish?.id ?? null,
+      length_cm: lengthVal  ? parseFloat(lengthVal)  : null,
+      weight_g:  weightVal  ? parseFloat(weightVal)  : null,
+      caught_at: datetimeVal ? new Date(datetimeVal).toISOString() : new Date().toISOString(),
+      image_url: imageUrl,
+      lake_name: lake?.name ?? null,
+      lake_id:   lake?.id   ?? null,
+    });
+
+    if (error) {
+      errorEl.textContent   = 'Kunde inte spara fångsten. Försök igen.';
+      errorEl.style.display = 'block';
+      saveBtn.disabled      = false;
+      saveBtn.innerHTML     = '<i data-lucide="save" class="icon"></i> Spara fångst';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    successEl.style.display = 'flex';
+    saveBtn.classList.remove('btn-pulse');
+    setTimeout(() => history.back(), 1200);
+  });
+}
+
+// ── Fångstlista & statistik ───────────────────────────────────────
+async function initCatchesPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const skeleton  = document.getElementById('catches-skeleton');
+  const content   = document.getElementById('catches-content');
+  const emptyEl   = document.getElementById('catches-empty');
+  const statGrid  = document.getElementById('catches-stat-grid');
+  const catchList = document.getElementById('catches-list');
+
+  const { data: catches } = await sb.from('catches')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('caught_at', { ascending: false });
+
+  skeleton.style.display = 'none';
+
+  if (!catches?.length) {
+    emptyEl.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  content.style.display = 'block';
+
+  // ── Statistik ─────────────────────────────────
+  const totalCount = catches.length;
+
+  // Gruppera per fiskart
+  const byFish = {};
+  catches.forEach(c => {
+    byFish[c.fish_name] = (byFish[c.fish_name] ?? 0) + 1;
+  });
+  const sortedFish = Object.entries(byFish).sort((a, b) => b[1] - a[1]);
+
+  // Totalkort + ett kort per art (max 5 arter)
+  const statCards = [
+    `<div class="stat-card">
+       <div class="stat-card-number">${totalCount}</div>
+       <div class="stat-card-label">Totalt</div>
+       <div class="stat-card-fish">fångade fiskar</div>
+     </div>`,
+    ...sortedFish.slice(0, 5).map(([name, count]) =>
+      `<div class="stat-card">
+         <div class="stat-card-number">${count}</div>
+         <div class="stat-card-label">${name}</div>
+         <div class="stat-card-fish">🐟</div>
+       </div>`
+    ),
+  ];
+  statGrid.innerHTML = statCards.join('');
+
+  // ── Lista ──────────────────────────────────────
+  catchList.innerHTML = catches.map(c => {
+    const date = new Date(c.caught_at).toLocaleDateString('sv-SE', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    const lengthTxt = c.length_cm ? `${c.length_cm} cm` : null;
+    const weightTxt = c.weight_g  ? `${c.weight_g} g`   : null;
+    const meta = [lengthTxt, weightTxt, c.lake_name].filter(Boolean);
+
+    const thumb = c.image_url
+      ? `<img class="catch-img" src="${c.image_url}" alt="${c.fish_name}">`
+      : `<div class="catch-emoji-thumb">🐟</div>`;
+
+    return `
+      <div class="catch-card">
+        ${thumb}
+        <div class="catch-info">
+          <div class="catch-fish-name">${c.fish_name}</div>
+          <div class="catch-meta">
+            ${meta.map(m => `<span class="catch-meta-item">${m}</span>`).join('')}
+          </div>
+          <div class="catch-date">${date}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Knapp i session.html: Navigera till catch.html ────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const btnRegister = document.getElementById('btn-register-catch');
+  if (btnRegister) {
+    btnRegister.addEventListener('click', () => {
+      location.href = 'catch.html';
+    });
+  }
+});

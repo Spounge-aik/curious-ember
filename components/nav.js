@@ -6,6 +6,7 @@ export function renderNav() {
   const links = [
     { href: 'index.html',   icon: 'map',     label: 'Sjöar'      },
     { href: 'history.html', icon: 'fish',    label: 'Mitt Fiske' },
+    { href: 'catches.html', icon: 'award',   label: 'Fångster'   },
     { href: 'library.html', icon: 'anchor',  label: 'Utrustning' },
   ];
 
