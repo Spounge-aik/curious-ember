@@ -21,16 +21,9 @@
 
   <!-- Skeleton loader -->
   <div id="catches-skeleton">
-    <p class="section-title mb-3">Statistik</p>
-    <div class="stat-grid mb-6">
-      <div class="skeleton skeleton-card" style="height:90px"></div>
-      <div class="skeleton skeleton-card" style="height:90px"></div>
-      <div class="skeleton skeleton-card" style="height:90px"></div>
-      <div class="skeleton skeleton-card" style="height:90px"></div>
-    </div>
-    <p class="section-title mb-3">Fångster</p>
+    <div class="skeleton skeleton-card mb-4" style="height:90px"></div>
+    <div class="skeleton skeleton-card mb-6" style="height:200px"></div>
     <div class="flex flex-col gap-3">
-      <div class="skeleton skeleton-card" style="height:80px"></div>
       <div class="skeleton skeleton-card" style="height:80px"></div>
       <div class="skeleton skeleton-card" style="height:80px"></div>
     </div>
@@ -39,10 +32,33 @@
   <!-- Innehåll -->
   <div id="catches-content" style="display:none">
 
-    <!-- Statistik -->
+    <!-- Personliga rekord -->
     <div class="mb-6">
-      <p class="section-title mb-3">Statistik</p>
-      <div id="catches-stat-grid" class="stat-grid"></div>
+      <p class="section-title mb-3">Personliga rekord</p>
+      <div id="records-row" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch"></div>
+    </div>
+
+    <!-- Månadsstatistik -->
+    <div class="mb-6">
+      <p class="section-title mb-3">Fångster per månad</p>
+      <div style="background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--border-soft)">
+        <canvas id="chart-monthly" style="max-height:200px"></canvas>
+      </div>
+    </div>
+
+    <!-- Dygnsfördelning -->
+    <div class="mb-6">
+      <p class="section-title mb-3">När fiskar du bäst?</p>
+      <div style="background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--border-soft)">
+        <canvas id="chart-hourly" style="max-height:160px"></canvas>
+      </div>
+    </div>
+
+    <!-- Väderkoppling -->
+    <div id="weather-stats-section" class="mb-6" style="display:none">
+      <p class="section-title mb-3">Väderkoppling</p>
+      <div id="weather-stats-content"
+           style="background:var(--surface);border-radius:var(--radius-lg);padding:14px 16px;border:1px solid var(--border-soft);font-size:.85rem;color:var(--text-2);line-height:1.8"></div>
     </div>
 
     <!-- Lista -->
@@ -79,6 +95,7 @@
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

@@ -1060,6 +1060,12 @@ async function initCatchPage() {
   if (fish?.name) fishNameInput.value = fish.name;
   datetimeInput.value = new Date().toISOString().slice(0, 16);
 
+  // Hämta väder i bakgrunden
+  let currentWeather = null;
+  if (lake?.lat && lake?.lng) {
+    fetchWeather(lake.lat, lake.lng).then(w => { currentWeather = w; });
+  }
+
   // ── Foto ──────────────────────────────────────
   let catchImageFile = null;
 
@@ -1178,12 +1184,26 @@ async function initCatchPage() {
     const weightVal   = document.getElementById('catch-weight').value;
     const datetimeVal = document.getElementById('catch-datetime').value;
 
+    const newWeight = weightVal  ? parseFloat(weightVal)  : null;
+    const newLength = lengthVal  ? parseFloat(lengthVal)  : null;
+
+    // Hämta PB-data INNAN insert
+    let prevMax = { weight: 0, length: 0 };
+    if (newWeight || newLength) {
+      const { data: prev } = await sb.from('catches')
+        .select('weight_g, length_cm')
+        .eq('user_id', user.id)
+        .eq('fish_name', fishName);
+      prevMax.weight = Math.max(0, ...(prev?.map(c => c.weight_g  ?? 0) ?? []));
+      prevMax.length = Math.max(0, ...(prev?.map(c => c.length_cm ?? 0) ?? []));
+    }
+
     const { error } = await sb.from('catches').insert({
       user_id:        user.id,
       fish_name:      fishName,
       fish_id:        fish?.id ?? null,
-      length_cm:      lengthVal  ? parseFloat(lengthVal)  : null,
-      weight_g:       weightVal  ? parseFloat(weightVal)  : null,
+      length_cm:      newLength,
+      weight_g:       newWeight,
       caught_at:      datetimeVal ? new Date(datetimeVal).toISOString() : new Date().toISOString(),
       image_url:      imageUrl,
       lake_name:      lake?.name ?? null,
@@ -1194,6 +1214,9 @@ async function initCatchPage() {
       lure_id:        selectedLure?.id   ?? null,
       lure_name:      selectedLure?.name ?? null,
       lure_image_url: selectedLure?.image_url ?? null,
+      weather_temp:   currentWeather?.temp  ?? null,
+      weather_wind:   currentWeather?.wind  ?? null,
+      weather_precip: currentWeather?.precip ?? null,
     });
 
     if (error) {
@@ -1208,9 +1231,22 @@ async function initCatchPage() {
       return;
     }
 
+    // PB-detektering
+    const isPbWeight = newWeight && newWeight > prevMax.weight;
+    const isPbLength = newLength && newLength > prevMax.length;
+    if (isPbWeight || isPbLength) {
+      const pbEl = document.getElementById('catch-pb-msg');
+      let txt = `🏆 Nytt rekord – ${fishName}!`;
+      if (newWeight) txt += `  ${newWeight.toLocaleString('sv-SE')} g`;
+      if (newLength) txt += ` · ${newLength} cm`;
+      pbEl.textContent     = txt;
+      pbEl.style.display   = 'block';
+      setTimeout(() => { pbEl.style.display = 'none'; }, 5000);
+    }
+
     successEl.style.display = 'flex';
     saveBtn.classList.remove('btn-pulse');
-    setTimeout(() => history.back(), 1200);
+    setTimeout(() => history.back(), isPbWeight || isPbLength ? 2500 : 1200);
   });
 }
 
@@ -1223,7 +1259,6 @@ async function initCatchesPage() {
   const skeleton  = document.getElementById('catches-skeleton');
   const content   = document.getElementById('catches-content');
   const emptyEl   = document.getElementById('catches-empty');
-  const statGrid  = document.getElementById('catches-stat-grid');
   const catchList = document.getElementById('catches-list');
 
   const { data: catches } = await sb.from('catches')
@@ -1241,32 +1276,132 @@ async function initCatchesPage() {
 
   content.style.display = 'block';
 
-  // ── Statistik ─────────────────────────────────
-  const totalCount = catches.length;
-
-  // Gruppera per fiskart
-  const byFish = {};
+  // ── Rekord per art ────────────────────────────
+  const records = {};
+  const byFish  = {};
   catches.forEach(c => {
     byFish[c.fish_name] = (byFish[c.fish_name] ?? 0) + 1;
+    if (!records[c.fish_name]) records[c.fish_name] = { weight: 0, length: 0 };
+    if ((c.weight_g  ?? 0) > records[c.fish_name].weight) records[c.fish_name].weight = c.weight_g;
+    if ((c.length_cm ?? 0) > records[c.fish_name].length) records[c.fish_name].length = c.length_cm;
   });
-  const sortedFish = Object.entries(byFish).sort((a, b) => b[1] - a[1]);
 
-  // Totalkort + ett kort per art (max 5 arter)
-  const statCards = [
-    `<div class="stat-card">
-       <div class="stat-card-number">${totalCount}</div>
-       <div class="stat-card-label">Totalt</div>
-       <div class="stat-card-fish">fångade fiskar</div>
-     </div>`,
-    ...sortedFish.slice(0, 5).map(([name, count]) =>
-      `<div class="stat-card">
-         <div class="stat-card-number">${count}</div>
-         <div class="stat-card-label">${name}</div>
-         <div class="stat-card-fish">🐟</div>
-       </div>`
-    ),
-  ];
-  statGrid.innerHTML = statCards.join('');
+  const recordsRow = document.getElementById('records-row');
+  if (recordsRow) {
+    const fishId = name => Object.entries(FISH_EMOJI).find(([,v]) => {
+      const fd = FISH_DATA[name.toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/å/g,'a')];
+      return false;
+    })?.[0];
+    recordsRow.innerHTML = Object.entries(records).map(([name, r]) => {
+      const emoji = FISH_EMOJI[Object.keys(FISH_DATA).find(k =>
+        (FISH_DATA[k]?.name ?? k) === name ||
+        catches.find(c => c.fish_name === name && c.fish_id === k)
+      )] ?? '🐟';
+      const wTxt = r.weight ? `${r.weight.toLocaleString('sv-SE')} g` : '—';
+      const lTxt = r.length ? `${r.length} cm` : '—';
+      return `
+        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border-soft);
+                    border-radius:var(--radius-lg);padding:12px 16px;min-width:130px;text-align:center">
+          <div style="font-size:28px;margin-bottom:4px">${emoji}</div>
+          <div style="font-weight:700;font-size:.8rem;margin-bottom:6px">${name}</div>
+          <div style="font-size:.72rem;color:var(--accent);font-weight:700">🏆 ${wTxt}</div>
+          <div style="font-size:.72rem;color:var(--text-3)">${lTxt}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Chart.js global mörkt tema ────────────────
+  if (window.Chart) {
+    Chart.defaults.color           = 'rgba(255,255,255,0.55)';
+    Chart.defaults.borderColor     = 'rgba(255,255,255,0.08)';
+    Chart.defaults.font.family     = "'Space Mono', monospace";
+    Chart.defaults.font.size       = 11;
+  }
+
+  // ── Månadsdiagram ─────────────────────────────
+  const CHART_COLORS = ['#E8701A','#4A9ECA','#5DBB6A','#E8C21A','#CA4A9E'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+  const year   = new Date().getFullYear();
+  const thisYear = catches.filter(c => new Date(c.caught_at).getFullYear() === year);
+  const topFish  = Object.entries(byFish).sort((a,b) => b[1]-a[1]).slice(0,5).map(e => e[0]);
+
+  const monthlyCtx = document.getElementById('chart-monthly');
+  if (monthlyCtx && window.Chart) {
+    new Chart(monthlyCtx, {
+      type: 'bar',
+      data: {
+        labels: MONTHS,
+        datasets: topFish.map((name, i) => ({
+          label: name,
+          data: Array.from({ length: 12 }, (_, m) =>
+            thisYear.filter(c => c.fish_name === name && new Date(c.caught_at).getMonth() === m).length
+          ),
+          backgroundColor: CHART_COLORS[i] + 'bb',
+          borderColor:     CHART_COLORS[i],
+          borderWidth: 1,
+          borderRadius: 4,
+        })),
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } } },
+        scales: {
+          x: { stacked: false, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        },
+      },
+    });
+  }
+
+  // ── Dygnsfördelning ───────────────────────────
+  const hourData  = Array(24).fill(0);
+  catches.forEach(c => { hourData[new Date(c.caught_at).getHours()]++; });
+  const hourLabels = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2,'0'));
+
+  const hourlyCtx = document.getElementById('chart-hourly');
+  if (hourlyCtx && window.Chart) {
+    new Chart(hourlyCtx, {
+      type: 'bar',
+      data: {
+        labels: hourLabels,
+        datasets: [{
+          label: 'Fångster',
+          data: hourData,
+          backgroundColor: '#E8701Abb',
+          borderColor: '#E8701A',
+          borderWidth: 1,
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        },
+      },
+    });
+  }
+
+  // ── Väderkoppling ─────────────────────────────
+  const withWeather = catches
+    .filter(c => c.weather_temp != null)
+    .sort((a, b) => (b.weight_g ?? 0) - (a.weight_g ?? 0))
+    .slice(0, 10);
+  if (withWeather.length >= 2) {
+    const avgTemp = (withWeather.reduce((s,c) => s + c.weather_temp, 0) / withWeather.length).toFixed(1);
+    const avgWind = (withWeather.reduce((s,c) => s + (c.weather_wind ?? 0), 0) / withWeather.length).toFixed(1);
+    const weatherSec = document.getElementById('weather-stats-section');
+    const weatherCnt = document.getElementById('weather-stats-content');
+    if (weatherSec && weatherCnt) {
+      weatherSec.style.display = 'block';
+      weatherCnt.innerHTML = `
+        🌡️ Dina toppfångster skedde vid snitt <strong>${avgTemp}°C</strong><br>
+        💨 Genomsnittlig vind: <strong>${avgWind} m/s</strong><br>
+        📊 Baserat på dina ${withWeather.length} tyngsta fångster`;
+    }
+  }
 
   // ── Lista ──────────────────────────────────────
   catchList.innerHTML = catches.map(c => {
@@ -1290,6 +1425,7 @@ async function initCatchesPage() {
             ${meta.map(m => `<span class="catch-meta-item">${m}</span>`).join('')}
           </div>
           <div class="catch-date">${date}</div>
+          ${c.weather_temp != null ? `<div style="font-size:.7rem;color:var(--text-3);margin-top:2px">🌡 ${c.weather_temp}°C · 💨 ${c.weather_wind ?? '?'} m/s</div>` : ''}
         </div>
         <button class="btn-del-catch" data-id="${c.id}"
                 style="background:none;border:none;color:var(--text-3);cursor:pointer;padding:8px;flex-shrink:0;transition:color .15s"
@@ -1315,8 +1451,9 @@ async function initCatchesPage() {
         c.weight_g   && { label: 'Vikt',        value: c.weight_g  + ' g'  },
         c.lake_name  && { label: 'Sjö',         value: c.lake_name          },
                         { label: 'Datum & tid', value: dateStr              },
-        c.rod_name   && { label: 'Spö',         value: c.rod_name           },
-        c.lure_name  && { label: 'Bete',        value: c.lure_name          },
+        c.rod_name       && { label: 'Spö',     value: c.rod_name                    },
+        c.lure_name      && { label: 'Bete',    value: c.lure_name                   },
+        c.weather_temp != null && { label: 'Väder', value: `${c.weather_temp}°C · ${c.weather_wind ?? '?'} m/s vind` },
       ].filter(Boolean);
       openDetailOverlay(c.fish_name, hero, fields);
     }));
