@@ -136,56 +136,64 @@ function assessWeather(fishId, w) {
 async function fetchFishForLake(lat, lng, lake = null) {
   const MIN_OBS   = 5;
   const RADII     = [0.02, 0.04, 0.07]; // börja litet (~2km), utöka vid behov
-  const YEAR_FROM = new Date().getFullYear() - 10; // senaste 10 åren
+  const YEAR_FROM = new Date().getFullYear() - 10;
   const YEAR_TO   = new Date().getFullYear();
 
-  // Inplanterade arter som alltid visas oavsett GBIF-data
+  // Inplanterade arter visas alltid oavsett GBIF
   const stocked = (lake?.stockedFish ?? [])
     .map(id => ({ id, ...FISH_INFO[id], tag: 'Inplanterad', _count: 0 }))
     .filter(f => f.name);
 
+  // Taxa att slå upp (exkludera inplanterade som hanteras separat)
+  const keysToLookup = Object.entries(GBIF_KEYS)
+    .filter(([fishId]) => !lake?.stockedFish?.includes(fishId));
+
   for (const deg of RADII) {
-    const counts = {};
+    try {
+      // En enda request med facets – undviker rate-limiting från 17 parallella anrop
+      const params = new URLSearchParams({
+        decimalLatitude:  `${lat - deg},${lat + deg}`,
+        decimalLongitude: `${lng - deg},${lng + deg}`,
+        year:             `${YEAR_FROM},${YEAR_TO}`,
+        country:          'SE',
+        limit:            '0',
+        hasCoordinate:    'true',
+        facet:            'SPECIES_KEY',
+        facetLimit:       '50',
+        facetMincount:    String(MIN_OBS),
+      });
+      keysToLookup.forEach(([, k]) => params.append('taxonKey', k));
 
-    // Hämta observationsantal per art individuellt → exakt count per art
-    await Promise.all(
-      Object.entries(GBIF_KEYS).map(async ([fishId, gbifKey]) => {
-        // Skippa arter som redan finns som inplanterade
-        if (lake?.stockedFish?.includes(fishId)) return;
-        try {
-          const url = `https://api.gbif.org/v1/occurrence/search?taxonKey=${gbifKey}` +
-            `&decimalLatitude=${lat-deg},${lat+deg}` +
-            `&decimalLongitude=${lng-deg},${lng+deg}` +
-            `&year=${YEAR_FROM},${YEAR_TO}` +
-            `&country=SE&limit=0&hasCoordinate=true`;
-          const r = await fetch(url);
-          const d = await r.json();
-          if ((d.count ?? 0) >= MIN_OBS) counts[fishId] = d.count;
-        } catch { /* nätverksfel – skippa arten */ }
-      })
-    );
+      const r = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`);
+      if (!r.ok) continue;
+      const d = await r.json();
 
-    // Om vi hittade minst 3 vilda arter i denna radie → nöjda
-    if (Object.keys(counts).length >= 3) {
-      const maxCount = Math.max(...Object.values(counts));
-      const wildFish = Object.entries(counts)
-        .map(([id, count]) => ({
-          id,
-          ...FISH_INFO[id],
-          tag: count >= maxCount * 0.3 ? 'Vanlig'
-             : count >= maxCount * 0.1 ? 'Ovanlig'
-             : 'Sällsynt',
-          _count: count,
-        }))
-        .filter(f => f.name)
-        .sort((a, b) => b._count - a._count);
+      // Bygg counts från facet-svaret
+      const counts = {};
+      for (const { name, count } of d.facets?.[0]?.counts ?? []) {
+        const fishId = KEY_TO_ID[Number(name)];
+        if (fishId && count >= MIN_OBS) counts[fishId] = count;
+      }
 
-      // Inplanterade fiskar läggs sist
-      return [...wildFish, ...stocked];
-    }
+      if (Object.keys(counts).length >= 3) {
+        const maxCount = Math.max(...Object.values(counts));
+        const wildFish = Object.entries(counts)
+          .map(([id, count]) => ({
+            id,
+            ...FISH_INFO[id],
+            tag: count >= maxCount * 0.3 ? 'Vanlig'
+               : count >= maxCount * 0.1 ? 'Ovanlig'
+               : 'Sällsynt',
+            _count: count,
+          }))
+          .filter(f => f.name)
+          .sort((a, b) => b._count - a._count);
+
+        return [...wildFish, ...stocked];
+      }
+    } catch { continue; }
   }
 
-  // Fallback: inga vilda fynd – returnera bara inplanterade om sådana finns
   return stocked;
 }
 

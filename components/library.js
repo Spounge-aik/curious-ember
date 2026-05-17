@@ -292,10 +292,14 @@ async function analyzeImageBlob(blob) {
     document.getElementById('item-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   } catch (err) {
+    // Visa hint om API-nyckel saknas
+    const hintText = err.message?.includes('MISSING') || err.hint
+      ? 'Kontrollera att ANTHROPIC_API_KEY är satt i Vercel'
+      : 'fyll i fälten manuellt';
     analyzing.innerHTML = `
-      <p style="font-size:.8rem;color:var(--error);display:flex;align-items:center;gap:6px">
+      <p style="font-size:.78rem;color:var(--error);display:flex;align-items:center;gap:6px">
         <i data-lucide="alert-circle" style="width:14px;height:14px;stroke:currentColor;flex-shrink:0"></i>
-        AI-analys misslyckades (${err.message}) – fyll i fälten manuellt
+        AI-analys misslyckades – ${hintText}
       </p>`;
     if (window.lucide) lucide.createIcons();
     setTimeout(() => { analyzing.style.display = 'none'; }, 4000);

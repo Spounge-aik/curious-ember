@@ -1,10 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-// Höj body-gränsen till 10 MB (standard 1 MB räcker inte för base64-bilder)
-export const config = {
-  api: { bodyParser: { sizeLimit: '10mb' } },
-};
-
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req, res) {
@@ -50,6 +45,10 @@ Om du inte kan identifiera vad det är, gör ditt bästa utifrån vad som syns.`
 
     res.json(JSON.parse(match[0]));
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    // Logga nyckelstatus för felsökning (nyckelns första/sista tecken)
+    const key = process.env.ANTHROPIC_API_KEY ?? '';
+    const keyInfo = key ? `key=${key.slice(0,8)}…${key.slice(-4)}` : 'key=MISSING';
+    console.error(`analyze-image error [${keyInfo}]:`, e.message);
+    res.status(500).json({ error: e.message, hint: key ? null : 'ANTHROPIC_API_KEY saknas i Vercel' });
   }
 }
