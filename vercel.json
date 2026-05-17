@@ -1,8 +1,4 @@
 {
-  "functions": {
-    "api/analyze-image.js": { "runtime": "nodejs20.x" },
-    "api/recommend.js":     { "runtime": "nodejs20.x" }
-  },
   "headers": [
     {
       "source": "/(.*)",
