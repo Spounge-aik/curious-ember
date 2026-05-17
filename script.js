@@ -199,7 +199,7 @@ async function fetchFishForLake(lat, lng, lake = null) {
 
 // ── Sjödata ───────────────────────────────────────────────────────
 const SEED_LAKES = [
-  {id:'trekanten',name:'Trekanten',lat:59.308,lng:18.005,county:'Stockholm',stockedFish:['regnbage']},
+  {id:'trekanten',name:'Trekanten',lat:59.308,lng:18.005,county:'Stockholm',stockedFish:['regnbage'],smhiId:'657902-162594'},
   {id:'judarn',name:'Judarn',lat:59.343,lng:17.924,county:'Stockholm'},
   {id:'drevviken',name:'Drevviken',lat:59.208,lng:18.105,county:'Stockholm'},
   {id:'magelungen',name:'Magelungen',lat:59.229,lng:18.088,county:'Stockholm'},
@@ -225,7 +225,7 @@ const SEED_LAKES = [
   {id:'vombsjön',name:'Vombsjön',lat:55.672,lng:13.563,county:'Skåne'},
   {id:'ringsjön',name:'Ringsjön',lat:55.875,lng:13.508,county:'Skåne'},
   {id:'storsjön-z',name:'Storsjön',lat:63.15,lng:14.38,county:'Jämtland'},
-  {id:'dagarn',name:'Dagarn',lat:59.9082,lng:15.7035,county:'Västmanland'},
+  {id:'dagarn',name:'Dagarn',lat:59.9082,lng:15.7035,county:'Västmanland',smhiId:'664197-149337'},
   {id:'dammsjön-fagersta',name:'Dammsjön',lat:59.9309,lng:15.7238,county:'Västmanland'},
   {id:'svarttjärnen',name:'Svarttjärnen',lat:59.9256,lng:15.7128,county:'Västmanland'},
 ];
@@ -632,6 +632,60 @@ async function initLakePage() {
 
   document.getElementById('lake-name').textContent   = lake.name;
   document.getElementById('lake-county').textContent = lake.county;
+
+  // Djupkarta (om sjön har smhiId)
+  if (lake.smhiId) {
+    const depthSection = document.getElementById('depth-map-section');
+    if (depthSection) {
+      depthSection.style.display = 'block';
+      if (window.lucide) lucide.createIcons();
+
+      let mapLoaded = false;
+      document.getElementById('btn-show-depth').addEventListener('click', async () => {
+        const canvasWrap = document.getElementById('depth-map-canvas-wrap');
+        const btn        = document.getElementById('btn-show-depth');
+
+        if (canvasWrap.style.display !== 'none') {
+          canvasWrap.style.display = 'none';
+          btn.innerHTML = '<i data-lucide="layers" class="icon"></i> Visa djupkarta (SMHI)';
+          if (window.lucide) lucide.createIcons();
+          return;
+        }
+
+        canvasWrap.style.display = 'block';
+        btn.innerHTML = '<i data-lucide="layers" class="icon"></i> Dölj djupkarta';
+        if (window.lucide) lucide.createIcons();
+
+        if (mapLoaded) return;
+
+        const loading = document.getElementById('depth-map-loading');
+        const canvas  = document.getElementById('depth-map-canvas');
+
+        try {
+          const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const buf  = await resp.arrayBuffer();
+
+          if (window.Tiff) {
+            Tiff.initialize({ TOTAL_MEMORY: 64 * 1024 * 1024 });
+            const tiff = new Tiff({ buffer: buf });
+            const tCanvas = tiff.toCanvas();
+            canvas.width  = tCanvas.width;
+            canvas.height = tCanvas.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(tCanvas, 0, 0);
+            loading.style.display = 'none';
+            canvas.style.display  = 'block';
+            mapLoaded = true;
+          } else {
+            loading.innerHTML = '<span style="color:var(--error)">tiff.js ej laddat</span>';
+          }
+        } catch (e) {
+          loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
+        }
+      });
+    }
+  }
 
   let selectedFish = null;
   const fishGrid   = document.getElementById('fish-grid');
