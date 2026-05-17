@@ -34,7 +34,7 @@ const FISH_EMOJI = {
 const FISH_INFO = {
   gadda:   { name:'Gädda',   desc:'Stor rovfisk',            tag:'Vanlig' },
   abborre: { name:'Abborre', desc:'Vanlig i hela Sverige',   tag:'Vanlig' },
-  gos:     { name:'Gösen',   desc:'Djuplevande rovfisk',     tag:'Vanlig' },
+  gos:     { name:'Gös',   desc:'Djuplevande rovfisk',     tag:'Vanlig' },
   lake:    { name:'Lake',    desc:'Aktiv på vintern',        tag:'Vanlig' },
   lax:     { name:'Lax',     desc:'Stor sportfisk',          tag:'Vanlig' },
   oring:   { name:'Öring',   desc:'Kräver kallt vatten',     tag:'Vanlig' },
@@ -459,7 +459,7 @@ function initHomePage() {
     if (!allFish.length) allFish = [
       { id:'gadda',   name:'Gädda',   tag:'Vanlig' },
       { id:'abborre', name:'Abborre', tag:'Vanlig' },
-      { id:'gos',     name:'Gösen',   tag:'Vanlig' },
+      { id:'gos',     name:'Gös',   tag:'Vanlig' },
     ];
 
     countTxt.textContent   = `${allFish.length} fiskarter registrerade i denna sjö`;
@@ -653,7 +653,7 @@ async function initLakePage() {
   } catch { fish = []; }
 
   if (!fish.length) fish = [
-    {id:'gadda',name:'Gädda',tag:'Vanlig'},{id:'abborre',name:'Abborre',tag:'Vanlig'},{id:'gos',name:'Gösen',tag:'Vanlig'}
+    {id:'gadda',name:'Gädda',tag:'Vanlig'},{id:'abborre',name:'Abborre',tag:'Vanlig'},{id:'gos',name:'Gös',tag:'Vanlig'}
   ];
 
   countTxt.textContent    = `🐟 ${fish.length} fiskarter registrerade`;
