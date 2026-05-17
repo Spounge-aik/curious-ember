@@ -485,15 +485,23 @@ function applyAISuggestion(s) {
   set('item-color', s.color);
   set('item-size',  s.size);
 
-  // Lägg till fisk-taggar (filtrera bort tomma och platshållare som "...")
+  // Lägg till fisk-taggar via inmatningsfältet – en i taget med kort delay
   if (Array.isArray(s.fish_tags)) {
-    s.fish_tags.forEach(t => {
-      const tag = t.toLowerCase().trim();
-      if (tag && tag !== '...' && tag.length > 1 && !tags.includes(tag)) tags.push(tag);
+    const validTags = s.fish_tags
+      .map(t => t.toLowerCase().trim())
+      .filter(t => t && t !== '...' && t.length > 1 && !tags.includes(t));
+
+    const input = document.getElementById('tag-input');
+    validTags.forEach((tag, i) => {
+      setTimeout(() => {
+        if (input) input.value = tag;
+        if (!tags.includes(tag)) { tags.push(tag); renderTags(); }
+        // Rensa fältet efter sista taggen
+        if (i === validTags.length - 1 && input) input.value = '';
+        const hint = document.getElementById('tag-hint');
+        if (hint) hint.style.display = tags.length ? 'block' : 'none';
+      }, i * 300);
     });
-    renderTags();
-    const hint = document.getElementById('tag-hint');
-    if (hint) hint.style.display = tags.length ? 'block' : 'none';
   }
 
   // Visa alltid lure-fält om betetyp identifieras
