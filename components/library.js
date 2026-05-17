@@ -88,13 +88,13 @@ function openCropper(file) {
   cropImg.onload = () => {
     if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
     _cropperInstance = new Cropper(cropImg, {
-      aspectRatio: 1,          // kvadratisk beskärning
-      viewMode:    1,
-      autoCropArea: 0.9,
-      movable:     true,
-      zoomable:    true,
-      rotatable:   false,
-      scalable:    false,
+      aspectRatio:  NaN,  // fri beskärning – valfri storlek
+      viewMode:     1,
+      autoCropArea: 0.95,
+      movable:      true,
+      zoomable:     true,
+      rotatable:    false,
+      scalable:     false,
     });
   };
 }

@@ -30,7 +30,7 @@ export function renderRecommendations(rec) {
 
 function recCard(item, defaultEmoji) {
   const img = item.image_url
-    ? `<img src="${item.image_url}" alt="" style="width:100%;height:100%;object-fit:contain">`
+    ? `<img src="${item.image_url}" alt="" style="width:100%;height:100%;object-fit:cover">`
     : defaultEmoji;
   return `
     <div class="card rec-card card-interactive">
