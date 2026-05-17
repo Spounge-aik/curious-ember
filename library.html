@@ -1,9 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Curious Ember – Utrustning</title>
+  <title>Fiskeappen – Utrustning</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,36 +14,43 @@
 
 <main class="page-content" style="padding:20px 16px">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 style="font-size:1.1rem">Utrustning</h1>
-      <p class="text-muted text-xs" style="margin-top:2px">Ditt spö- och betebibliotek</p>
+      <h1 class="text-xl font-bold">Utrustning</h1>
+      <p class="text-xs text-muted mt-1">Ditt spö- och betebibliotek</p>
     </div>
-    <button class="btn btn-primary btn-sm" id="btn-add">+ Lägg till</button>
+    <button class="btn btn-primary btn-sm" id="btn-add">
+      <i data-lucide="plus" class="icon"></i> Lägg till
+    </button>
   </div>
 
-  <!-- Tabs -->
-  <div class="tab-bar" style="margin-bottom:20px">
-    <button class="tab-btn active" data-tab="rods">🎣 Spön (<span id="rod-count">0</span>)</button>
-    <button class="tab-btn" data-tab="lures">🪝 Beten (<span id="lure-count">0</span>)</button>
+  <div class="tab-bar mb-5">
+    <button class="tab-btn active" data-tab="rods">
+      <i data-lucide="fish" class="icon"></i> Spön (<span id="rod-count">0</span>)
+    </button>
+    <button class="tab-btn" data-tab="lures">
+      <i data-lucide="anchor" class="icon"></i> Beten (<span id="lure-count">0</span>)
+    </button>
   </div>
 
-  <!-- Skeleton -->
   <div id="list-spinner">
     <div class="equipment-grid">
-      ${[1,2,3,4].map(()=>`<div class="skeleton skeleton-card"></div>`).join('')}
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
     </div>
   </div>
 
-  <!-- Grid -->
   <div id="item-grid" class="equipment-grid" style="display:none"></div>
 
-  <!-- Tom state -->
   <div id="empty-lib" class="empty-state" style="display:none">
-    <div class="empty-icon" id="empty-icon">🎣</div>
-    <p style="font-weight:700;margin-bottom:6px" id="empty-text">Inga spön ännu</p>
-    <p class="text-sm text-muted" style="margin-bottom:20px">Lägg till för att få AI-rekommendationer</p>
-    <button class="btn btn-primary" id="btn-add-empty">+ Lägg till</button>
+    <i data-lucide="fish" class="empty-icon-svg" id="empty-icon"></i>
+    <p class="font-bold mb-1" id="empty-text">Inga spön ännu</p>
+    <p class="text-sm text-muted mb-5">Lägg till för att få AI-rekommendationer</p>
+    <button class="btn btn-primary" id="btn-add-empty">
+      <i data-lucide="plus" class="icon"></i> Lägg till
+    </button>
   </div>
 
 </main>
@@ -50,37 +59,40 @@
 <div id="modal-overlay">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <h2 id="modal-title" style="margin-bottom:20px;font-size:1rem"></h2>
+    <h2 id="modal-title" class="font-bold mb-5" style="font-size:1rem"></h2>
 
-    <!-- Bildförhandsvisning -->
-    <div id="img-preview-wrap" style="display:none;margin-bottom:12px;position:relative">
-      <img id="img-preview" src="" alt="" style="width:100%;height:160px;object-fit:contain;background:var(--surface-2);border-radius:var(--radius-lg)">
-      <button onclick="window.__clearImage()" style="position:absolute;top:8px;right:8px;background:rgba(15,23,42,.8);border:none;color:var(--text-2);border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px">×</button>
+    <div id="img-preview-wrap" style="display:none;position:relative;margin-bottom:12px">
+      <img id="img-preview" src="" alt=""
+           style="width:100%;height:160px;object-fit:contain;background:var(--surface-2);border-radius:20px">
+      <button onclick="window.__clearImage()"
+              style="position:absolute;top:8px;right:8px;background:rgba(18,24,36,.85);border:none;color:var(--text-2);border-radius:50%;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <i data-lucide="x" style="width:14px;height:14px;stroke:currentColor"></i>
+      </button>
     </div>
 
-    <!-- Kamera-knappar -->
     <div id="img-buttons" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-      <button class="btn btn-surface" id="btn-camera" style="gap:6px">
-        📷 Ta foto
+      <button class="btn btn-surface" id="btn-camera">
+        <i data-lucide="camera" class="icon"></i> Ta foto
       </button>
-      <button class="btn btn-ghost" id="btn-gallery" style="gap:6px">
-        🖼️ Välj bild
+      <button class="btn btn-ghost" id="btn-gallery">
+        <i data-lucide="image" class="icon"></i> Välj bild
       </button>
     </div>
     <input type="file" id="file-camera"  accept="image/*" capture="environment" style="display:none">
     <input type="file" id="file-gallery" accept="image/*" style="display:none">
 
-    <!-- AI-analysindikator -->
-    <div id="ai-analyzing" style="display:none;text-align:center;padding:12px;background:var(--surface);border-radius:var(--radius);margin-bottom:16px">
-      <p style="font-size:.8rem;color:var(--accent)">🤖 Analyserar bilden…</p>
+    <div id="ai-analyzing" style="display:none;text-align:center;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:16px">
+      <p style="font-size:.8rem;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px">
+        <i data-lucide="cpu" class="icon"></i> Analyserar bilden…
+      </p>
     </div>
 
-    <!-- AI-förslag-banner -->
-    <div id="ai-suggestion-banner" style="display:none;background:var(--accent-dim);border:1px solid rgba(249,115,22,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
-      <p style="font-size:.78rem;color:var(--accent);font-weight:700">🤖 AI-förslag — granska och godkänn</p>
+    <div id="ai-suggestion-banner" style="display:none;background:var(--accent-dim);border:1px solid rgba(249,115,22,.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:8px">
+      <i data-lucide="sparkles" style="width:15px;height:15px;color:var(--accent);flex-shrink:0"></i>
+      <p style="font-size:.78rem;color:var(--accent);font-weight:700">AI-förslag — granska och godkänn</p>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="flex flex-col gap-3">
       <input type="text" id="item-name" placeholder="Namn *">
       <textarea id="item-desc" placeholder="Beskrivning (valfritt)" rows="2"></textarea>
 
@@ -91,14 +103,16 @@
       </div>
 
       <div>
-        <div style="display:flex;gap:8px">
+        <div class="flex gap-2">
           <input type="text" id="tag-input" placeholder="Tagg, t.ex. gädda">
-          <button class="btn btn-ghost btn-sm" id="btn-add-tag" style="white-space:nowrap;padding:10px 14px">+</button>
+          <button class="btn btn-ghost btn-sm" id="btn-add-tag" style="padding:10px 14px">
+            <i data-lucide="plus" class="icon"></i>
+          </button>
         </div>
-        <div id="tag-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        <div id="tag-list" class="flex flex-wrap gap-2 mt-2"></div>
       </div>
 
-      <div style="display:flex;gap:10px;padding-top:4px">
+      <div class="flex gap-3 pt-1">
         <button class="btn btn-ghost btn-half" id="btn-cancel">Avbryt</button>
         <button class="btn btn-primary btn-half" id="btn-save">Spara</button>
       </div>
@@ -107,6 +121,7 @@
 </div>
 
 <nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

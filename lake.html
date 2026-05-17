@@ -1,9 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Curious Ember – Välj fisk</title>
+  <title>Fiskeappen – Välj fisk</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,48 +14,48 @@
 
 <main class="page-content" style="padding:20px 16px">
 
-  <button class="back-btn" onclick="history.back()" style="margin-bottom:18px">← Tillbaka</button>
+  <button class="back-btn mb-5" onclick="history.back()">
+    <i data-lucide="chevron-left" class="icon"></i> Tillbaka
+  </button>
 
-  <!-- Sjö-info -->
-  <div style="margin-bottom:16px">
-    <h1 id="lake-name" style="font-size:1.3rem">Laddar…</h1>
-    <p id="lake-county" class="text-muted text-sm" style="margin-top:2px"></p>
+  <div class="mb-4">
+    <h1 id="lake-name" class="text-2xl font-bold">Laddar…</h1>
+    <p id="lake-county" class="text-sm text-muted mt-1"></p>
   </div>
 
-  <!-- Fisk-räknare -->
-  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px;margin-bottom:24px">
-    <span id="fish-count-text" class="text-sm" style="color:var(--text-2)">🐟 Hämtar fiskarter…</span>
+  <div class="flex items-center justify-between mb-6 p-3 rounded-xl" style="background:var(--surface);border:1px solid var(--border-soft)">
+    <span id="fish-count-text" class="text-sm text-muted">Hämtar fiskarter…</span>
     <span id="source-badge" class="badge" style="display:none">Artportalen</span>
   </div>
 
-  <p class="section-title" style="margin-bottom:12px">Välj målfisk</p>
+  <p class="section-title">Välj målfisk</p>
 
-  <!-- Skeleton för fisk -->
-  <div id="fish-skeleton" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    <div class="skeleton" style="height:130px;border-radius:var(--radius-lg)"></div>
-    <div class="skeleton" style="height:130px;border-radius:var(--radius-lg)"></div>
-    <div class="skeleton" style="height:130px;border-radius:var(--radius-lg)"></div>
-    <div class="skeleton" style="height:130px;border-radius:var(--radius-lg)"></div>
+  <div id="fish-skeleton" class="grid grid-cols-2 gap-3" style="display:none">
+    <div class="skeleton" style="height:130px;border-radius:20px"></div>
+    <div class="skeleton" style="height:130px;border-radius:20px"></div>
+    <div class="skeleton" style="height:130px;border-radius:20px"></div>
+    <div class="skeleton" style="height:130px;border-radius:20px"></div>
   </div>
 
-  <!-- 2-kolumns fiskgrid -->
-  <div id="fish-grid" style="display:none;grid-template-columns:1fr 1fr;gap:10px"></div>
+  <div id="fish-grid" class="grid grid-cols-2 gap-3" style="display:none"></div>
 
-  <!-- Vald fisk + CTA -->
-  <div id="selected-wrap" style="display:none" class="cta-sticky">
-    <div class="card card-body" style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span id="selected-fish-emoji" style="font-size:26px">🐟</span>
+  <div id="selected-wrap" class="cta-sticky" style="display:none">
+    <div class="card card-body flex items-center gap-3 mb-3">
+      <i data-lucide="fish" id="selected-fish-emoji" style="width:28px;height:28px;color:var(--accent)"></i>
       <div>
-        <p class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:.06em">Du fiskar</p>
-        <p id="selected-fish-name" style="font-weight:700;font-size:1rem;color:var(--accent)"></p>
+        <p class="text-xs text-muted uppercase" style="letter-spacing:.06em">Du fiskar</p>
+        <p id="selected-fish-name" class="font-bold text-base" style="color:var(--accent)"></p>
       </div>
     </div>
-    <button class="btn btn-primary btn-full btn-lg btn-pulse" id="btn-start">🎣 Starta fiske!</button>
+    <button class="btn btn-primary btn-full btn-lg btn-pulse" id="btn-start">
+      <i data-lucide="fish" class="icon"></i> Starta fiske!
+    </button>
   </div>
 
 </main>
 
 <nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>
