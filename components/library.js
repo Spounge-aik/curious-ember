@@ -428,9 +428,8 @@ async function analyzeImageBlob(blob) {
       body:    JSON.stringify({ imageBase64: base64, mediaType: 'image/jpeg' }),
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const suggestion = await res.json();
-    if (suggestion.error) throw new Error(suggestion.error);
+    if (!res.ok || suggestion.error) throw new Error(suggestion.error || `HTTP ${res.status}`);
 
     applyAISuggestion(suggestion);
     banner.style.display = 'flex';
