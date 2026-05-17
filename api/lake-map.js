@@ -1,5 +1,5 @@
 const https = require('https');
-const sharp = require('sharp');
+const Jimp  = require('jimp');
 
 function fetchBuffer(url) {
   return new Promise((resolve, reject) => {
@@ -25,7 +25,8 @@ module.exports = async function handler(req, res) {
   try {
     const url     = `https://vattenwebb.smhi.se/svarwebb/rest/downloadmap/${id}`;
     const tiffBuf = await fetchBuffer(url);
-    const pngBuf  = await sharp(tiffBuf).png().toBuffer();
+    const image   = await Jimp.read(tiffBuf);
+    const pngBuf  = await image.getBufferAsync(Jimp.MIME_PNG);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');
