@@ -50,21 +50,49 @@ const FISH_INFO = {
 };
 
 async function fetchFishForLake(lat, lng) {
-  const deg = 0.07;
-  const params = new URLSearchParams({
-    decimalLatitude: `${lat-deg},${lat+deg}`,
-    decimalLongitude:`${lng-deg},${lng+deg}`,
-    country:'SE', limit:'300', hasCoordinate:'true', occurrenceStatus:'PRESENT',
-  });
-  Object.values(GBIF_KEYS).forEach(k => params.append('taxonKey', k));
-  const r    = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`);
-  const data = await r.json();
-  const found = new Set();
-  for (const occ of data.results ?? []) {
-    const id = KEY_TO_ID[occ.speciesKey] ?? KEY_TO_ID[occ.taxonKey];
-    if (id) found.add(id);
+  const MIN_OBS   = 5;
+  const RADII     = [0.02, 0.04, 0.07]; // börja litet (~2km), utöka vid behov
+  const YEAR_FROM = new Date().getFullYear() - 10; // senaste 10 åren
+  const YEAR_TO   = new Date().getFullYear();
+
+  for (const deg of RADII) {
+    const counts = {};
+
+    // Hämta observationsantal per art individuellt → exakt count per art
+    await Promise.all(
+      Object.entries(GBIF_KEYS).map(async ([fishId, gbifKey]) => {
+        try {
+          const url = `https://api.gbif.org/v1/occurrence/search?taxonKey=${gbifKey}` +
+            `&decimalLatitude=${lat-deg},${lat+deg}` +
+            `&decimalLongitude=${lng-deg},${lng+deg}` +
+            `&year=${YEAR_FROM},${YEAR_TO}` +
+            `&country=SE&limit=0&hasCoordinate=true`;
+          const r = await fetch(url);
+          const d = await r.json();
+          if ((d.count ?? 0) >= MIN_OBS) counts[fishId] = d.count;
+        } catch { /* nätverksfel – skippa arten */ }
+      })
+    );
+
+    // Om vi hittade minst 3 arter i denna radie → nöjda
+    if (Object.keys(counts).length >= 3) {
+      const maxCount = Math.max(...Object.values(counts));
+      return Object.entries(counts)
+        .map(([id, count]) => ({
+          id,
+          ...FISH_INFO[id],
+          tag: count >= maxCount * 0.3 ? 'Vanlig'
+             : count >= maxCount * 0.1 ? 'Ovanlig'
+             : 'Sällsynt',
+          _count: count,
+        }))
+        .filter(f => f.name)
+        .sort((a, b) => b._count - a._count);
+    }
   }
-  return [...found].map(id => ({ id, ...FISH_INFO[id] })).filter(f => f.name);
+
+  // Fallback: inga fynd ens vid 7km de senaste 10 åren
+  return [];
 }
 
 // ── Sjödata ───────────────────────────────────────────────────────
@@ -95,6 +123,9 @@ const SEED_LAKES = [
   {id:'vombsjön',name:'Vombsjön',lat:55.672,lng:13.563,county:'Skåne'},
   {id:'ringsjön',name:'Ringsjön',lat:55.875,lng:13.508,county:'Skåne'},
   {id:'storsjön-z',name:'Storsjön',lat:63.15,lng:14.38,county:'Jämtland'},
+  {id:'dagarn',name:'Dagarn',lat:59.9082,lng:15.7035,county:'Västmanland'},
+  {id:'dammsjön-fagersta',name:'Dammsjön',lat:59.9309,lng:15.7238,county:'Västmanland'},
+  {id:'svarttjärnen',name:'Svarttjärnen',lat:59.9256,lng:15.7128,county:'Västmanland'},
 ];
 
 function haversine(a,b,c,d){
@@ -118,20 +149,58 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('main').forEach(m => m.classList.add('page-content'));
 });
 
+// Initierar Lucide-ikoner när biblioteket laddats
+function initIcons() {
+  if (window.lucide) lucide.createIcons();
+}
+
 renderNav();
 if (document.getElementById('app-header')) renderHeader();
+
+// Kör createIcons efter DOM + Lucide är redo
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initIcons);
+} else {
+  // Lucide laddas som vanligt script — vänta lite om det inte syns än
+  if (window.lucide) lucide.createIcons();
+  else window.addEventListener('load', initIcons);
+}
 
 // Ladda Supabase SDK dynamiskt
 const sbScript = document.createElement('script');
 sbScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
 sbScript.onload = () => {
   _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  initPage();
+  guardAuth();
 };
 document.head.appendChild(sbScript);
 
+// ── Global auth-gate ──────────────────────────────────────────────
+// auth.html är enda sidan utan skydd
+async function guardAuth() {
+  if (page === 'auth.html') {
+    return initAuth();
+  }
+
+  // Kontrollera session – Supabase cachar i localStorage automatiskt
+  const { data: { session } } = await _sb.auth.getSession();
+
+  if (!session) {
+    // Spara vilken sida användaren försökte nå
+    sessionStorage.setItem('redirectAfterLogin', location.href);
+    location.replace('auth.html');
+    return;
+  }
+
+  // Lyssna på auth-ändringar (utloggning i annat fönster etc.)
+  _sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') location.replace('auth.html');
+  });
+
+  initPage();
+}
+
 function initPage() {
-  if (page === 'auth.html')    return initAuth();
   if (page === 'library.html') return initLibrary();
   if (page === 'lake.html')    return initLakePage();
   if (page === 'session.html') return initSessionPage();
@@ -139,11 +208,38 @@ function initPage() {
   initHomePage();
 }
 
-// ── Hemsida ───────────────────────────────────────────────────────
+// ── Hemsida – Wizard ──────────────────────────────────────────────
 function initHomePage() {
   let selectedLake = null;
+  let selectedFish = null;
   let allLakes     = [];
+  let allFish      = [];
 
+  // ── Wizard-navigation ─────────────────────────
+  function goToStep(n) {
+    [1, 2, 3].forEach(i => {
+      const step = document.getElementById(`step-${i}`);
+      const dot  = document.getElementById(`dot-${i}`);
+      if (i < n) {
+        step.classList.remove('active');
+        dot.classList.remove('active');
+        dot.classList.add('done');
+      } else if (i === n) {
+        step.classList.add('active');
+        dot.classList.add('active');
+        dot.classList.remove('done');
+      } else {
+        step.classList.remove('active');
+        dot.classList.remove('active', 'done');
+      }
+    });
+    if (window.lucide) lucide.createIcons();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  window.__goToStep = goToStep;
+
+  // ── Steg 1: Välj sjö ──────────────────────────
   const gpsBtn       = document.getElementById('btn-gps');
   const searchToggle = document.getElementById('btn-search-toggle');
   const searchBox    = document.getElementById('search-box');
@@ -152,35 +248,24 @@ function initHomePage() {
   const mapDiv       = document.getElementById('map');
   const lakeSection  = document.getElementById('lake-section');
   const lakeList     = document.getElementById('lake-list');
-  const ctaWrap      = document.getElementById('cta-wrap');
-  const startBtn     = document.getElementById('btn-start');
-  const emptyState   = document.getElementById('empty-state');
   const listTitle    = document.getElementById('lake-list-title');
   const gpsSkeleton  = document.getElementById('gps-skeleton');
   const gpsWidget    = document.getElementById('gps-widget');
   const lakeSkeleton = document.getElementById('lake-skeleton');
 
   function setStatus(msg) {
-    statusMsg.textContent    = msg;
-    statusMsg.style.display  = msg ? 'block' : 'none';
-  }
-
-  function showSkeletons() {
-    emptyState.style.display  = 'none';
-    gpsSkeleton.style.display = 'block';
-    lakeSkeleton.style.display = 'block';
+    statusMsg.textContent   = msg;
+    statusMsg.style.display = msg ? 'block' : 'none';
   }
 
   function renderLakes(lakes, isSearch = false) {
     allLakes = lakes;
     gpsSkeleton.style.display  = 'none';
     lakeSkeleton.style.display = 'none';
-    emptyState.style.display   = 'none';
     mapDiv.style.display       = 'block';
     lakeSection.style.display  = 'block';
     listTitle.textContent      = isSearch ? 'Sökresultat' : 'Närmaste sjöar';
 
-    // GPS-widget: visa närmaste sjö
     if (!isSearch && lakes[0]) {
       document.getElementById('gps-lake-name').textContent = lakes[0].name;
       document.getElementById('gps-lake-dist').textContent = `${lakes[0].distance_km} km bort · ${lakes[0].county}`;
@@ -194,7 +279,7 @@ function initHomePage() {
           <div class="lake-name">${l.name}</div>
           <div class="lake-meta">${l.county}${l.distance_km != null ? ' · ' + l.distance_km + ' km' : ''}</div>
         </div>
-        ${selectedLake?.id === l.id ? `<span style="color:var(--accent);font-size:1.1rem">✓</span>` : ''}
+        ${selectedLake?.id === l.id ? `<i data-lucide="check" style="width:18px;height:18px;color:var(--accent)"></i>` : ''}
       </button>`).join('');
 
     lakeList.querySelectorAll('.lake-btn').forEach(btn =>
@@ -205,29 +290,33 @@ function initHomePage() {
 
     const center = lakes[0] ? [lakes[0].lat, lakes[0].lng] : [62.5, 16];
     initMap(center, lakes, lake => selectLake(lake, lakes));
+    if (window.lucide) lucide.createIcons();
   }
 
   function selectLake(lake, lakes) {
     selectedLake = lake;
-    renderLakes(lakes, listTitle.textContent === 'Sökresultat');
-    ctaWrap.style.display = 'block';
-    startBtn.textContent  = `🎣 Starta fiske vid ${lake.name}`;
     sessionStorage.setItem('selectedLake', JSON.stringify(lake));
+    renderLakes(lakes, listTitle.textContent === 'Sökresultat');
+
+    // Uppdatera chip i steg 2
+    document.getElementById('chip-lake-name').textContent   = lake.name;
+    document.getElementById('chip-lake-name-3').textContent = lake.name;
+
+    // Gå till steg 2
+    goToStep(2);
+    loadFishForLake(lake);
   }
 
   gpsBtn.addEventListener('click', () => {
     if (!navigator.geolocation) { setStatus('GPS stöds ej i din webbläsare.'); return; }
-    showSkeletons();
+    gpsSkeleton.style.display  = 'block';
+    lakeSkeleton.style.display = 'block';
     setStatus('');
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        renderLakes(getNearby(lat, lng));
-      },
+      pos => renderLakes(getNearby(pos.coords.latitude, pos.coords.longitude)),
       () => {
         gpsSkeleton.style.display  = 'none';
         lakeSkeleton.style.display = 'none';
-        emptyState.style.display   = 'block';
         setStatus('Kunde inte hämta plats. Kontrollera GPS-behörighet.');
       }
     );
@@ -239,19 +328,146 @@ function initHomePage() {
     if (open) searchInput.focus();
   });
 
-  let timer;
+  let searchTimer;
   searchInput.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
       const q = searchInput.value.trim();
       if (q.length < 2) return;
       renderLakes(searchLakes(q), true);
     }, 280);
   });
 
-  startBtn.addEventListener('click', () => {
-    if (!selectedLake) return;
-    location.href = `lake.html?id=${selectedLake.id}`;
+  // ── Steg 2: Välj fisk ─────────────────────────
+  async function loadFishForLake(lake) {
+    const fishGrid = document.getElementById('fish-grid');
+    const fishSkel = document.getElementById('fish-skeleton');
+    const countTxt = document.getElementById('fish-count-text');
+
+    fishGrid.style.display = 'none';
+    fishSkel.style.display = 'grid';
+    countTxt.textContent   = 'Hämtar fiskarter från Artportalen…';
+
+    try {
+      allFish = await fetchFishForLake(lake.lat, lake.lng);
+    } catch { allFish = []; }
+
+    if (!allFish.length) allFish = [
+      { id:'gadda',   name:'Gädda',   tag:'Vanlig' },
+      { id:'abborre', name:'Abborre', tag:'Vanlig' },
+      { id:'gos',     name:'Gösen',   tag:'Vanlig' },
+    ];
+
+    countTxt.textContent   = `${allFish.length} fiskarter registrerade i denna sjö`;
+    fishSkel.style.display = 'none';
+    fishGrid.style.display = 'grid';
+    renderFishGrid();
+  }
+
+  function renderFishGrid() {
+    const fishGrid = document.getElementById('fish-grid');
+    fishGrid.innerHTML = allFish.map(f => `
+      <div class="home-fish-card ${selectedFish?.id === f.id ? 'selected' : ''}" data-fid="${f.id}">
+        <span class="hfc-emoji">${FISH_EMOJI[f.id] ?? '🐟'}</span>
+        <div class="hfc-name">${f.name}</div>
+        <div class="hfc-tag">${f.tag ?? 'Vanlig'}</div>
+      </div>`).join('');
+
+    fishGrid.querySelectorAll('.home-fish-card').forEach(card =>
+      card.addEventListener('click', () => {
+        selectedFish = selectedFish?.id === card.dataset.fid
+          ? null
+          : allFish.find(f => f.id === card.dataset.fid);
+        renderFishGrid();
+        if (selectedFish) {
+          setTimeout(() => selectFish(selectedFish), 180);
+        }
+      }));
+  }
+
+  function selectFish(fish) {
+    sessionStorage.setItem('selectedFish', JSON.stringify(fish));
+
+    // Uppdatera chips i steg 3
+    document.getElementById('chip-fish-name').textContent  = fish.name;
+    document.getElementById('chip-fish-emoji').textContent = FISH_EMOJI[fish.id] ?? '🐟';
+    document.getElementById('hero-title').textContent =
+      `Bästa valet för ${fish.name} i ${selectedLake?.name ?? '—'}`;
+
+    goToStep(3);
+    loadEquipmentPreview(fish);
+  }
+
+  // ── Steg 3: Utrustning & start ─────────────────
+  async function loadEquipmentPreview(fish) {
+    const section  = document.getElementById('eq-preview-section');
+    const grid     = document.getElementById('eq-preview-grid');
+    const hint     = document.getElementById('login-hint');
+
+    const { data: { user } } = await _sb.auth.getUser();
+    if (!user) {
+      hint.style.display    = 'flex';
+      section.style.display = 'none';
+      return;
+    }
+
+    hint.style.display = 'none';
+    const fishTag = fish.name.toLowerCase();
+
+    const [{ data: rods }, { data: lures }] = await Promise.all([
+      _sb.from('rods').select('*').eq('user_id', user.id),
+      _sb.from('lures').select('*').eq('user_id', user.id),
+    ]);
+
+    // Filtrera på fisk-tagg eller visa alla om inga matchningar
+    const matchRods  = (rods  ?? []).filter(r => r.tags?.some(t => t.includes(fishTag))).slice(0,2);
+    const matchLures = (lures ?? []).filter(l => l.tags?.some(t => t.includes(fishTag))).slice(0,4);
+
+    const allItems = [
+      ...matchRods.map(r  => ({...r, kind:'rod'})),
+      ...matchLures.map(l => ({...l, kind:'lure'})),
+    ];
+
+    if (!allItems.length) {
+      // Visa de senaste om inga matchningar
+      const recent = [
+        ...(rods ?? []).slice(0,2).map(r  => ({...r, kind:'rod'})),
+        ...(lures ?? []).slice(0,2).map(l => ({...l, kind:'lure'})),
+      ];
+      if (!recent.length) { section.style.display = 'none'; return; }
+      renderEqPreview(grid, recent);
+    } else {
+      renderEqPreview(grid, allItems);
+    }
+
+    section.style.display = 'block';
+  }
+
+  function renderEqPreview(grid, items) {
+    grid.innerHTML = items.map((item, i) => `
+      <div class="eq-preview-card">
+        <div class="eq-preview-img">
+          ${item.image_url
+            ? `<img src="${item.image_url}" alt="${item.name}">`
+            : `<span style="font-size:28px">${item.kind === 'rod' ? '🎣' : '🪝'}</span>`}
+          ${i === 0 ? `<div style="position:absolute;top:6px;right:6px" class="best-badge">Bäst</div>` : ''}
+        </div>
+        <div class="eq-preview-body" style="position:relative">
+          <div class="eq-preview-name">${item.name}</div>
+          <div class="eq-preview-meta">${item.kind === 'rod' ? 'Spö' : `Bete${item.type ? ' · ' + item.type : ''}`}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('btn-start').addEventListener('click', () => {
+    if (!selectedLake || !selectedFish) return;
+    const btn = document.getElementById('btn-start');
+    btn.textContent = 'Startar…';
+    btn.classList.remove('btn-pulse');
+    btn.classList.add('btn-fishing');
+    setTimeout(() => {
+      location.href = `session.html?lakeId=${selectedLake.id}&fishId=${selectedFish.id}`;
+    }, 500);
   });
 }
 
@@ -388,33 +604,76 @@ async function initHistoryPage() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { location.href = 'auth.html'; return; }
 
-  const { data: sessions } = await sb.from('sessions')
-    .select('*').eq('user_id', user.id)
-    .order('started_at', { ascending: false }).limit(30);
+  async function loadSessions() {
+    const { data: sessions } = await sb.from('sessions')
+      .select('*').eq('user_id', user.id)
+      .order('started_at', { ascending: false }).limit(30);
 
-  document.getElementById('hist-skeleton').style.display = 'none';
+    document.getElementById('hist-skeleton').style.display = 'none';
 
-  if (!sessions?.length) {
-    document.getElementById('hist-empty').style.display = 'block';
-    return;
+    if (!sessions?.length) {
+      document.getElementById('hist-content').style.display = 'none';
+      document.getElementById('hist-empty').style.display   = 'block';
+      return;
+    }
+
+    document.getElementById('hist-empty').style.display   = 'none';
+    document.getElementById('hist-content').style.display = 'block';
+
+    const list = document.getElementById('hist-list');
+    list.innerHTML = sessions.map(s => {
+      const date = new Date(s.started_at).toLocaleDateString('sv-SE',
+        { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      return `
+        <div class="session-hist-card" data-id="${s.id}">
+          <div style="flex:1;cursor:pointer" class="session-nav"
+               data-lake='${JSON.stringify({id:s.lake_id,name:s.lake_name,lat:0,lng:0,county:""})}'
+               data-lid="${s.lake_id}" data-fid="${s.target_fish_id}">
+            <div style="font-weight:700;font-size:.9rem">${s.lake_name}</div>
+            <div class="sh-fish-row">
+              <span>${FISH_EMOJI[s.target_fish_id] ?? '🐟'}</span>
+              <span style="font-size:.8rem;color:var(--text-2)">${s.target_fish_name}</span>
+            </div>
+            <div class="text-xs" style="color:var(--text-3);margin-top:4px">${date}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span class="sh-badge session-nav" style="cursor:pointer"
+                  data-lake='${JSON.stringify({id:s.lake_id,name:s.lake_name,lat:0,lng:0,county:""})}'
+                  data-lid="${s.lake_id}" data-fid="${s.target_fish_id}">→</span>
+            <button class="btn-delete-session" data-id="${s.id}"
+                    style="background:var(--error-dim);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;color:var(--error);transition:all .15s"
+                    title="Radera session">
+              <i data-lucide="trash-2" style="width:15px;height:15px;stroke:currentColor"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Navigera till session
+    list.querySelectorAll('.session-nav').forEach(el =>
+      el.addEventListener('click', () => {
+        sessionStorage.setItem('selectedLake', el.dataset.lake);
+        location.href = `session.html?lakeId=${el.dataset.lid}&fishId=${el.dataset.fid}`;
+      }));
+
+    // Radera session
+    list.querySelectorAll('.btn-delete-session').forEach(btn =>
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id   = btn.dataset.id;
+        const card = list.querySelector(`.session-hist-card[data-id="${id}"]`);
+
+        // Animera bort
+        card.style.transition = 'opacity .25s, transform .25s';
+        card.style.opacity    = '0';
+        card.style.transform  = 'translateX(20px)';
+
+        await sb.from('sessions').delete().eq('id', id);
+        setTimeout(() => loadSessions(), 260);
+      }));
+
+    if (window.lucide) lucide.createIcons();
   }
 
-  document.getElementById('hist-content').style.display = 'block';
-  document.getElementById('hist-list').innerHTML = sessions.map(s => {
-    const date = new Date(s.started_at).toLocaleDateString('sv-SE',
-      {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-    return `
-      <div class="session-hist-card card-interactive"
-           onclick="sessionStorage.setItem('selectedLake',JSON.stringify({id:'${s.lake_id}',name:'${s.lake_name}',lat:0,lng:0,county:''}));location.href='session.html?lakeId=${s.lake_id}&fishId=${s.target_fish_id}'">
-        <div>
-          <div style="font-weight:700;font-size:.9rem">${s.lake_name}</div>
-          <div class="sh-fish-row">
-            <span>${FISH_EMOJI[s.target_fish_id] ?? '🐟'}</span>
-            <span style="font-size:.8rem;color:var(--text-2)">${s.target_fish_name}</span>
-          </div>
-          <div class="text-xs" style="color:var(--text-3);margin-top:4px">${date}</div>
-        </div>
-        <span class="sh-badge">→</span>
-      </div>`;
-  }).join('');
+  loadSessions();
 }
