@@ -1,9 +1,10 @@
-const https = require('https');
-const Jimp  = require('jimp');
+const https  = require('https');
+const UTIF   = require('utif');
+const { PNG } = require('pngjs');
 
 function fetchBuffer(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
+    const req = https.get(url, (res) => {
       if (res.statusCode !== 200) {
         return reject(new Error('SMHI svarade ' + res.statusCode));
       }
@@ -11,7 +12,9 @@ function fetchBuffer(url) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', reject);
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout mot SMHI')); });
   });
 }
 
@@ -25,8 +28,21 @@ module.exports = async function handler(req, res) {
   try {
     const url     = `https://vattenwebb.smhi.se/svarwebb/rest/downloadmap/${id}`;
     const tiffBuf = await fetchBuffer(url);
-    const image   = await Jimp.read(tiffBuf);
-    const pngBuf  = await image.getBufferAsync(Jimp.MIME_PNG);
+
+    // Avkoda TIFF
+    const ifds = UTIF.decode(tiffBuf);
+    UTIF.decodeImage(tiffBuf, ifds[0]);
+    const img  = ifds[0];
+    const w    = img.width  || (img.t256 && img.t256[0]);
+    const h    = img.height || (img.t257 && img.t257[0]);
+    if (!w || !h) throw new Error(`Ogiltiga dimensioner (${w}x${h})`);
+
+    const rgba = UTIF.toRGBA8(img);
+
+    // Koda som PNG
+    const png  = new PNG({ width: w, height: h });
+    png.data   = Buffer.from(rgba);
+    const pngBuf = PNG.sync.write(png);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');
