@@ -50,7 +50,16 @@ module.exports = async function handler(req, res) {
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
             {
               type: 'text',
-              text: 'Analysera detta fiskebete eller fiskespö. Svara ENBART med JSON:\n{"name":"...","type":"wobler/jig/spinnare/fluga/dropshot/softbait/spo/annat","color":"...","size":"...","fish_tags":["..."],"description":"..."}',
+              text: `Du är expert på sportfiske i Sverige. Analysera bilden och identifiera betet eller spöet.
+Svara ENBART med giltig JSON, inga förklaringar:
+{
+  "name": "kortnamn på produkten (max 4 ord)",
+  "type": "en av: wobler, jig, spinnare, fluga, dropshot, softbait, spö, annat",
+  "color": "huvudfärgen på betet eller spöet",
+  "size": "uppskattad längd eller storlek, t.ex. 7cm eller Medium",
+  "fish_tags": ["lista på 1-3 svenska fiskarter detta passar för, t.ex. gädda, abborre, gösen"],
+  "description": "en mening på svenska om betetets användning och karaktär"
+}`,
             },
           ],
         },

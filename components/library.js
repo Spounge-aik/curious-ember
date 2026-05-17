@@ -480,13 +480,18 @@ function applyAISuggestion(s) {
   set('item-color', s.color);
   set('item-size',  s.size);
 
-  // Lägg till fisk-taggar
+  // Lägg till fisk-taggar (filtrera bort tomma och platshållare som "...")
   if (Array.isArray(s.fish_tags)) {
     s.fish_tags.forEach(t => {
       const tag = t.toLowerCase().trim();
-      if (tag && !tags.includes(tag)) tags.push(tag);
+      if (tag && tag !== '...' && tag.length > 1 && !tags.includes(tag)) tags.push(tag);
     });
     renderTags();
+  }
+
+  // Visa alltid lure-fält om betetyp identifieras
+  if (s.type) {
+    document.getElementById('lure-fields').style.display = 'grid';
   }
 
   // Visa lure-fält om typ identifieras som bete
