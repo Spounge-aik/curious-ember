@@ -1,4 +1,5 @@
 import { getSupabase } from '../script.js';
+import { isAiEnabled } from './header.js';
 
 let currentTab = 'rods';
 let editingId  = null;
@@ -139,8 +140,8 @@ async function confirmCrop(sb) {
     // Visa preview direkt
     showImagePreview(URL.createObjectURL(blob));
 
-    // Starta AI-analys parallellt med uppladdning
-    const analyzePromise = analyzeImageBlob(blob);
+    // Starta AI-analys parallellt med uppladdning (om AI är på)
+    const analyzePromise = isAiEnabled() ? analyzeImageBlob(blob) : Promise.resolve();
 
     // Ladda upp till Supabase
     try {

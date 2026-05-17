@@ -1,8 +1,14 @@
 import { getSupabase } from '../script.js';
 
+export function isAiEnabled() {
+  return localStorage.getItem('aiEnabled') !== '0';
+}
+
 export function renderHeader() {
   const header = document.getElementById('app-header');
   if (!header) return;
+
+  const aiOn = isAiEnabled();
 
   header.innerHTML = `
     <a href="index.html" class="logo">
@@ -10,6 +16,10 @@ export function renderHeader() {
       <span>Fiskeappen</span>
     </a>
     <div class="header-actions">
+      <button class="icon-btn" id="btn-ai" title="${aiOn ? 'Stäng av AI' : 'Slå på AI'}"
+              style="${aiOn ? 'color:var(--accent);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)' : ''}">
+        <i data-lucide="sparkles" style="width:16px;height:16px"></i>
+      </button>
       <button class="icon-btn" id="btn-desktop" title="Växla desktop-läge">
         <i data-lucide="monitor" style="width:16px;height:16px"></i>
       </button>
@@ -19,6 +29,17 @@ export function renderHeader() {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+
+  // AI-toggle
+  document.getElementById('btn-ai').addEventListener('click', () => {
+    const nowOn = !isAiEnabled();
+    localStorage.setItem('aiEnabled', nowOn ? '1' : '0');
+    const btn = document.getElementById('btn-ai');
+    btn.title = nowOn ? 'Stäng av AI' : 'Slå på AI';
+    btn.style.color       = nowOn ? 'var(--accent)' : '';
+    btn.style.borderColor = nowOn ? 'var(--accent)' : '';
+    btn.style.boxShadow   = nowOn ? '0 0 0 2px var(--accent-dim)' : '';
+  });
 
   // Desktop-toggle
   document.getElementById('btn-desktop').addEventListener('click', () => {

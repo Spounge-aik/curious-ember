@@ -1,5 +1,5 @@
 import { renderNav }              from './components/nav.js';
-import { renderHeader }           from './components/header.js';
+import { renderHeader, isAiEnabled } from './components/header.js';
 import { initAuth }               from './components/auth.js';
 import { initMap }                from './components/map.js';
 import { renderRecommendations }  from './components/recommendations.js';
@@ -788,6 +788,16 @@ async function initSessionPage() {
     sb.from('rods').select('*').eq('user_id', user.id),
     sb.from('lures').select('*').eq('user_id', user.id),
   ]);
+
+  // Hoppa över AI om det är avstängt
+  if (!isAiEnabled()) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('rec-content').style.display   = 'block';
+    document.getElementById('tip-box').style.display       = 'block';
+    document.getElementById('tip-text').textContent        =
+      'AI-rekommendationer är avstängda. Slå på AI-knappen (✨) i toppen för att aktivera.';
+    return;
+  }
 
   try {
     const res = await fetch('/api/recommend', {
