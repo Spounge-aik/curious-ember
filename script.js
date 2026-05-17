@@ -947,6 +947,49 @@ async function initCatchPage() {
     fileGallery.value = '';
   });
 
+  // ── Spö & betesvval ──────────────────────────
+  let selectedRod  = null;
+  let selectedLure = null;
+
+  function renderGearList(containerId, items, emoji, onSelect) {
+    const container = document.getElementById(containerId);
+    if (!items.length) {
+      container.innerHTML = `<p class="text-xs text-muted" style="padding:8px 0">Inga tillagda ännu</p>`;
+      return;
+    }
+    container.innerHTML = items.map(item => `
+      <div class="catch-gear-card" data-gear-id="${item.id}">
+        ${item.image_url
+          ? `<img class="cgc-img" src="${item.image_url}" alt="${item.name}">`
+          : `<div class="cgc-emoji">${emoji}</div>`}
+        <div class="cgc-name">${item.name}</div>
+      </div>`).join('');
+    container.querySelectorAll('.catch-gear-card').forEach(card =>
+      card.addEventListener('click', () => {
+        const id   = card.dataset.gearId;
+        const item = items.find(x => x.id === id);
+        const same = onSelect(item, card);
+        container.querySelectorAll('.catch-gear-card').forEach(c => c.classList.remove('selected'));
+        if (!same) card.classList.add('selected');
+      }));
+  }
+
+  const [{ data: rods }, { data: lures }] = await Promise.all([
+    sb.from('rods').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+    sb.from('lures').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+  ]);
+
+  renderGearList('catch-rod-list', rods ?? [], '🎣', (item, card) => {
+    const same = selectedRod?.id === item.id;
+    selectedRod = same ? null : item;
+    return same;
+  });
+  renderGearList('catch-lure-list', lures ?? [], '🪝', (item, card) => {
+    const same = selectedLure?.id === item.id;
+    selectedLure = same ? null : item;
+    return same;
+  });
+
   // ── Spara ─────────────────────────────────────
   document.getElementById('btn-save-catch').addEventListener('click', async () => {
     const saveBtn   = document.getElementById('btn-save-catch');
@@ -985,15 +1028,21 @@ async function initCatchPage() {
     const datetimeVal = document.getElementById('catch-datetime').value;
 
     const { error } = await sb.from('catches').insert({
-      user_id:   user.id,
-      fish_name: fishName,
-      fish_id:   fish?.id ?? null,
-      length_cm: lengthVal  ? parseFloat(lengthVal)  : null,
-      weight_g:  weightVal  ? parseFloat(weightVal)  : null,
-      caught_at: datetimeVal ? new Date(datetimeVal).toISOString() : new Date().toISOString(),
-      image_url: imageUrl,
-      lake_name: lake?.name ?? null,
-      lake_id:   lake?.id   ?? null,
+      user_id:        user.id,
+      fish_name:      fishName,
+      fish_id:        fish?.id ?? null,
+      length_cm:      lengthVal  ? parseFloat(lengthVal)  : null,
+      weight_g:       weightVal  ? parseFloat(weightVal)  : null,
+      caught_at:      datetimeVal ? new Date(datetimeVal).toISOString() : new Date().toISOString(),
+      image_url:      imageUrl,
+      lake_name:      lake?.name ?? null,
+      lake_id:        lake?.id   ?? null,
+      rod_id:         selectedRod?.id   ?? null,
+      rod_name:       selectedRod?.name ?? null,
+      rod_image_url:  selectedRod?.image_url ?? null,
+      lure_id:        selectedLure?.id   ?? null,
+      lure_name:      selectedLure?.name ?? null,
+      lure_image_url: selectedLure?.image_url ?? null,
     });
 
     if (error) {
@@ -1111,10 +1160,12 @@ async function initCatchesPage() {
       const dateStr = new Date(c.caught_at).toLocaleDateString('sv-SE',
         { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
       const fields = [
-        c.length_cm && { label: 'Längd',       value: c.length_cm + ' cm' },
-        c.weight_g  && { label: 'Vikt',        value: c.weight_g  + ' g'  },
-        c.lake_name && { label: 'Sjö',         value: c.lake_name          },
-                       { label: 'Datum & tid', value: dateStr              },
+        c.length_cm  && { label: 'Längd',       value: c.length_cm + ' cm' },
+        c.weight_g   && { label: 'Vikt',        value: c.weight_g  + ' g'  },
+        c.lake_name  && { label: 'Sjö',         value: c.lake_name          },
+                        { label: 'Datum & tid', value: dateStr              },
+        c.rod_name   && { label: 'Spö',         value: c.rod_name           },
+        c.lure_name  && { label: 'Bete',        value: c.lure_name          },
       ].filter(Boolean);
       openDetailOverlay(c.fish_name, hero, fields);
     }));

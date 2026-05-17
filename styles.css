@@ -805,6 +805,40 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
 .detail-value { font-size: .9rem; color: var(--text); line-height: 1.5; }
 .detail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 
+/* ── Spö/bete-val i fångstformulär ────────────── */
+.catch-gear-row {
+  display: flex; gap: 10px; overflow-x: auto;
+  padding-bottom: 6px; -webkit-overflow-scrolling: touch;
+}
+.catch-gear-row::-webkit-scrollbar { display: none; }
+.catch-gear-card {
+  flex-shrink: 0; width: 90px; cursor: pointer;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  transition: border-color .15s, box-shadow .15s;
+  overflow: hidden;
+}
+.catch-gear-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+.catch-gear-card .cgc-img {
+  width: 90px; height: 70px;
+  object-fit: cover; display: block;
+  background: var(--surface-2);
+}
+.catch-gear-card .cgc-emoji {
+  width: 90px; height: 70px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; background: var(--surface-2);
+}
+.catch-gear-card .cgc-name {
+  font-size: .65rem; font-weight: 700;
+  padding: 5px 6px; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* 4-kolumns bottom nav – smalare text för att passa */
 #bottom-nav a {
   font-size: .55rem;
