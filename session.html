@@ -76,10 +76,29 @@
     </div>
   </div>
 
+  <!-- Djupkarta (visas bara om sjön har smhiId) -->
+  <div id="depth-map-section" style="display:none;margin-top:24px">
+    <div style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border-soft);overflow:hidden">
+      <button id="btn-show-depth" class="btn btn-surface btn-full" style="border-radius:0;border:none;justify-content:flex-start;gap:10px">
+        <i data-lucide="layers" style="width:16px;height:16px"></i>
+        <span>Djupkarta (SMHI)</span>
+        <i data-lucide="chevron-down" id="depth-chevron" style="width:14px;height:14px;margin-left:auto;transition:transform .2s"></i>
+      </button>
+      <div id="depth-map-canvas-wrap" style="display:none;padding:12px;text-align:center">
+        <div id="depth-map-loading" class="text-muted" style="font-size:.8rem;padding:20px 0">
+          <i data-lucide="loader" class="icon" style="animation:spin 1s linear infinite"></i> Laddar karta…
+        </div>
+        <canvas id="depth-map-canvas" style="display:none;width:100%;height:auto;border-radius:12px"></canvas>
+        <p style="font-size:.65rem;color:var(--text-3);margin-top:8px">Källa: SMHI SVAR · Lantmäteriet</p>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tiff.js@1.0.0/tiff.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

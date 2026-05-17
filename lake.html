@@ -28,23 +28,6 @@
     <span id="source-badge" class="badge" style="display:none">Artportalen</span>
   </div>
 
-  <!-- Djupkarta (visas bara om sjön har smhiId) -->
-  <div id="depth-map-section" style="display:none;margin-bottom:20px">
-    <p class="section-title" style="margin-bottom:8px">Djupkarta</p>
-    <div id="depth-map-wrap" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border-soft);overflow:hidden">
-      <button id="btn-show-depth" class="btn btn-surface btn-full" style="border-radius:0;border:none">
-        <i data-lucide="layers" class="icon"></i> Visa djupkarta (SMHI)
-      </button>
-      <div id="depth-map-canvas-wrap" style="display:none;padding:12px;text-align:center">
-        <div id="depth-map-loading" class="text-muted" style="font-size:.8rem;padding:20px 0">
-          <i data-lucide="loader" class="icon" style="animation:spin 1s linear infinite"></i> Laddar karta…
-        </div>
-        <canvas id="depth-map-canvas" style="display:none;width:100%;height:auto;border-radius:12px;max-height:400px"></canvas>
-        <p style="font-size:.65rem;color:var(--text-3);margin-top:6px">Källa: SMHI SVAR · Lantmäteriet</p>
-      </div>
-    </div>
-  </div>
-
   <p class="section-title">Välj målfisk</p>
 
   <div id="fish-skeleton" class="grid grid-cols-2 gap-3" style="display:none">
@@ -73,7 +56,6 @@
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tiff.js@1.0.0/tiff.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

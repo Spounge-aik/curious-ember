@@ -633,60 +633,6 @@ async function initLakePage() {
   document.getElementById('lake-name').textContent   = lake.name;
   document.getElementById('lake-county').textContent = lake.county;
 
-  // Djupkarta (om sjön har smhiId)
-  if (lake.smhiId) {
-    const depthSection = document.getElementById('depth-map-section');
-    if (depthSection) {
-      depthSection.style.display = 'block';
-      if (window.lucide) lucide.createIcons();
-
-      let mapLoaded = false;
-      document.getElementById('btn-show-depth').addEventListener('click', async () => {
-        const canvasWrap = document.getElementById('depth-map-canvas-wrap');
-        const btn        = document.getElementById('btn-show-depth');
-
-        if (canvasWrap.style.display !== 'none') {
-          canvasWrap.style.display = 'none';
-          btn.innerHTML = '<i data-lucide="layers" class="icon"></i> Visa djupkarta (SMHI)';
-          if (window.lucide) lucide.createIcons();
-          return;
-        }
-
-        canvasWrap.style.display = 'block';
-        btn.innerHTML = '<i data-lucide="layers" class="icon"></i> Dölj djupkarta';
-        if (window.lucide) lucide.createIcons();
-
-        if (mapLoaded) return;
-
-        const loading = document.getElementById('depth-map-loading');
-        const canvas  = document.getElementById('depth-map-canvas');
-
-        try {
-          const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
-          if (!resp.ok) throw new Error('HTTP ' + resp.status);
-          const buf  = await resp.arrayBuffer();
-
-          if (window.Tiff) {
-            Tiff.initialize({ TOTAL_MEMORY: 64 * 1024 * 1024 });
-            const tiff = new Tiff({ buffer: buf });
-            const tCanvas = tiff.toCanvas();
-            canvas.width  = tCanvas.width;
-            canvas.height = tCanvas.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(tCanvas, 0, 0);
-            loading.style.display = 'none';
-            canvas.style.display  = 'block';
-            mapLoaded = true;
-          } else {
-            loading.innerHTML = '<span style="color:var(--error)">tiff.js ej laddat</span>';
-          }
-        } catch (e) {
-          loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
-        }
-      });
-    }
-  }
-
   let selectedFish = null;
   const fishGrid   = document.getElementById('fish-grid');
   const fishSkel   = document.getElementById('fish-skeleton');
@@ -815,6 +761,8 @@ async function initSessionPage() {
       sessionStorage.setItem('selectedFish',
         JSON.stringify({ id: s.target_fish_id, name: s.target_fish_name }));
 
+      initDepthMap(s.lake_id);
+
       if (s.recommendations) {
         renderRecommendations(s.recommendations);
       } else {
@@ -837,6 +785,8 @@ async function initSessionPage() {
   document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
   document.getElementById('session-time').textContent       =
     new Date().toLocaleDateString('sv-SE', { weekday:'long', hour:'2-digit', minute:'2-digit' });
+
+  initDepthMap(lake?.id);
 
   const [{ data: rods }, { data: lures }] = await Promise.all([
     sb.from('rods').select('*').eq('user_id', user.id),
@@ -882,6 +832,50 @@ async function initSessionPage() {
     err.style.display = 'block';
     err.textContent   = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
   }
+}
+
+// ── Djupkarta (sessionssidan) ─────────────────────────────────────
+function initDepthMap(lakeId) {
+  const lake    = SEED_LAKES.find(l => l.id === lakeId);
+  if (!lake?.smhiId) return;
+  const section = document.getElementById('depth-map-section');
+  if (!section) return;
+  section.style.display = 'block';
+  if (window.lucide) lucide.createIcons();
+
+  let mapLoaded = false;
+  document.getElementById('btn-show-depth').addEventListener('click', async () => {
+    const canvasWrap = document.getElementById('depth-map-canvas-wrap');
+    const chevron    = document.getElementById('depth-chevron');
+    const open       = canvasWrap.style.display !== 'none';
+
+    canvasWrap.style.display    = open ? 'none' : 'block';
+    if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+    if (open || mapLoaded) return;
+
+    const loading = document.getElementById('depth-map-loading');
+    const canvas  = document.getElementById('depth-map-canvas');
+    try {
+      const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const buf = await resp.arrayBuffer();
+      if (window.Tiff) {
+        Tiff.initialize({ TOTAL_MEMORY: 64 * 1024 * 1024 });
+        const tiff    = new Tiff({ buffer: buf });
+        const tCanvas = tiff.toCanvas();
+        canvas.width  = tCanvas.width;
+        canvas.height = tCanvas.height;
+        canvas.getContext('2d').drawImage(tCanvas, 0, 0);
+        loading.style.display = 'none';
+        canvas.style.display  = 'block';
+        mapLoaded = true;
+      } else {
+        loading.innerHTML = '<span style="color:var(--error)">tiff.js ej laddat</span>';
+      }
+    } catch (e) {
+      loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
+    }
+  });
 }
 
 // ── Historik ──────────────────────────────────────────────────────
