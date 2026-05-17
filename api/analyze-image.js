@@ -1,46 +1,70 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
-  if (req.method !== 'POST')    { res.status(405).end(); return; }
+const https = require('https');
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY saknas' });
+function post(body) {
+  return new Promise((resolve, reject) => {
+    const payload = Buffer.from(JSON.stringify(body));
+    const req = https.request(
+      {
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'Content-Length': payload.length,
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch (e) { reject(new Error('Parse error: ' + data.slice(0, 200))); }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
 
-  const { imageBase64, mediaType = 'image/jpeg' } = req.body ?? {};
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return res.status(500).json({ error: 'API-nyckel saknas' });
+
+  const { imageBase64, mediaType = 'image/jpeg' } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: 'Ingen bild' });
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 512,
-        messages: [{
+    const result = await post({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 512,
+      messages: [
+        {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            { type: 'text',  text: `Du är expert på sportfiske i Sverige. Analysera bilden.
-Svara ENBART med JSON:
-{"name":"...","type":"wobler/jig/spinnare/fluga/dropshot/softbait/spo/annat","color":"...","size":"...","fish_tags":["..."],"description":"..."}` },
+            {
+              type: 'text',
+              text: 'Analysera detta fiskebete eller fiskespö. Svara ENBART med JSON:\n{"name":"...","type":"wobler/jig/spinnare/fluga/dropshot/softbait/spo/annat","color":"...","size":"...","fish_tags":["..."],"description":"..."}',
+            },
           ],
-        }],
-      }),
+        },
+      ],
     });
 
-    const d = await r.json();
-    if (d.error) return res.status(500).json({ error: d.error.message });
+    if (result.error) return res.status(500).json({ error: result.error.message });
 
-    const text  = d.content?.[0]?.text ?? '';
+    const text = (result.content && result.content[0] && result.content[0].text) || '';
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return res.status(500).json({ error: 'Inget JSON i svar', raw: text.slice(0,200) });
+    if (!match) return res.status(500).json({ error: 'Inget JSON i svar' });
 
     res.status(200).json(JSON.parse(match[0]));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-}
+};
