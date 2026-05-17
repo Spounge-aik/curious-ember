@@ -88,7 +88,7 @@
         <div id="depth-map-loading" class="text-muted" style="font-size:.8rem;padding:20px 0">
           <i data-lucide="loader" class="icon" style="animation:spin 1s linear infinite"></i> Laddar karta…
         </div>
-        <canvas id="depth-map-canvas" style="display:none;width:100%;height:auto;border-radius:12px"></canvas>
+        <img id="depth-map-img" src="" alt="Djupkarta" style="display:none;width:100%;height:auto;border-radius:12px">
         <p style="font-size:.65rem;color:var(--text-3);margin-top:8px">Källa: SMHI SVAR · Lantmäteriet</p>
       </div>
     </div>
@@ -98,7 +98,6 @@
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>

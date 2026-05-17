@@ -854,34 +854,10 @@ function initDepthMap(lakeId) {
     if (open || mapLoaded) return;
 
     const loading = document.getElementById('depth-map-loading');
-    const canvas  = document.getElementById('depth-map-canvas');
-    try {
-      const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const buf = await resp.arrayBuffer();
-      if (window.UTIF) {
-        const ifds = UTIF.decode(buf);
-        UTIF.decodeImage(buf, ifds[0]);
-        const img  = ifds[0];
-        // Dimensioner: försök .width/.height, annars TIFF-taggar t256/t257
-        const w    = img.width  || (img.t256 && img.t256[0]);
-        const h    = img.height || (img.t257 && img.t257[0]);
-        if (!w || !h) throw new Error(`Ogiltiga dimensioner (${w}×${h})`);
-        const rgba    = UTIF.toRGBA8(img);
-        canvas.width  = w;
-        canvas.height = h;
-        const ctx     = canvas.getContext('2d');
-        const imgData = new ImageData(new Uint8ClampedArray(rgba.buffer), w, h);
-        ctx.putImageData(imgData, 0, 0);
-        loading.style.display = 'none';
-        canvas.style.display  = 'block';
-        mapLoaded = true;
-      } else {
-        loading.innerHTML = '<span style="color:var(--error)">UTIF.js ej laddat</span>';
-      }
-    } catch (e) {
-      loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
-    }
+    const imgEl   = document.getElementById('depth-map-img');
+    imgEl.onload  = () => { loading.style.display = 'none'; imgEl.style.display = 'block'; mapLoaded = true; };
+    imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Kunde inte ladda karta</span>'; };
+    imgEl.src     = `/api/lake-map?id=${lake.smhiId}`;
   });
 }
 
