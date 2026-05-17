@@ -1082,7 +1082,7 @@ async function initCatchesPage() {
       : `<div class="catch-emoji-thumb">🐟</div>`;
 
     return `
-      <div class="catch-card">
+      <div class="catch-card" data-id="${c.id}">
         ${thumb}
         <div class="catch-info">
           <div class="catch-fish-name">${c.fish_name}</div>
@@ -1091,8 +1091,30 @@ async function initCatchesPage() {
           </div>
           <div class="catch-date">${date}</div>
         </div>
+        <button class="btn-del-catch" data-id="${c.id}"
+                style="background:none;border:none;color:var(--text-3);cursor:pointer;padding:8px;flex-shrink:0;transition:color .15s"
+                title="Ta bort fångst">
+          <i data-lucide="trash-2" style="width:16px;height:16px;stroke:currentColor"></i>
+        </button>
       </div>`;
   }).join('');
+
+  // Radera med bekräftelse
+  catchList.querySelectorAll('.btn-del-catch').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      const id   = btn.dataset.id;
+      const card = catchList.querySelector(`.catch-card[data-id="${id}"]`);
+      const name = card?.querySelector('.catch-fish-name')?.textContent ?? 'fångsten';
+
+      if (!confirm(`Vill du verkligen ta bort ${name}?`)) return;
+
+      card.style.transition = 'opacity .2s, transform .2s';
+      card.style.opacity    = '0';
+      card.style.transform  = 'translateX(20px)';
+
+      await sb.from('catches').delete().eq('id', id);
+      setTimeout(() => location.reload(), 220);
+    }));
 
   if (window.lucide) lucide.createIcons();
 }
