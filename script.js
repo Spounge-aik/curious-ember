@@ -859,18 +859,20 @@ function initDepthMap(lakeId) {
       const resp = await fetch(`/api/lake-map?id=${lake.smhiId}`);
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const buf = await resp.arrayBuffer();
-      if (window.Tiff) {
-        Tiff.initialize({ TOTAL_MEMORY: 64 * 1024 * 1024 });
-        const tiff    = new Tiff({ buffer: buf });
-        const tCanvas = tiff.toCanvas();
-        canvas.width  = tCanvas.width;
-        canvas.height = tCanvas.height;
-        canvas.getContext('2d').drawImage(tCanvas, 0, 0);
+      if (window.UTIF) {
+        const ifds = UTIF.decode(buf);
+        UTIF.decodeImage(buf, ifds[0]);
+        const rgba     = UTIF.toRGBA8(ifds[0]);
+        canvas.width   = ifds[0].width;
+        canvas.height  = ifds[0].height;
+        const ctx      = canvas.getContext('2d');
+        const imgData  = new ImageData(new Uint8ClampedArray(rgba.buffer), ifds[0].width, ifds[0].height);
+        ctx.putImageData(imgData, 0, 0);
         loading.style.display = 'none';
         canvas.style.display  = 'block';
         mapLoaded = true;
       } else {
-        loading.innerHTML = '<span style="color:var(--error)">tiff.js ej laddat</span>';
+        loading.innerHTML = '<span style="color:var(--error)">UTIF.js ej laddat</span>';
       }
     } catch (e) {
       loading.innerHTML = `<span style="color:var(--error)">Kunde inte ladda karta: ${e.message}</span>`;
