@@ -735,29 +735,54 @@ async function initLakePage() {
 
 // ── Sessionssida ──────────────────────────────────────────────────
 async function initSessionPage() {
-  const params = new URLSearchParams(location.search);
-  const lake   = JSON.parse(sessionStorage.getItem('selectedLake') || 'null')
-    ?? SEED_LAKES.find(l => l.id === params.get('lakeId'));
-  const fish   = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
-
-  document.getElementById('session-lake').textContent       = lake?.name ?? 'Okänd sjö';
-  document.getElementById('session-fish').textContent       = fish?.name ?? 'Okänd fisk';
-  document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
-  document.getElementById('session-time').textContent       =
-    new Date().toLocaleDateString('sv-SE',{weekday:'long',hour:'2-digit',minute:'2-digit'});
+  const params    = new URLSearchParams(location.search);
+  const sessionId = params.get('sessionId'); // satt när man öppnar historisk tur
 
   const sb = getSupabase();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { location.href = 'auth.html'; return; }
 
-  // Spara session
-  sb.from('sessions').insert({
-    user_id:          user.id,
-    lake_id:          lake?.id ?? 'unknown',
-    lake_name:        lake?.name ?? '?',
-    target_fish_id:   fish?.id ?? 'unknown',
-    target_fish_name: fish?.name ?? '?',
-  }).then(() => {});
+  // ── HISTORISK TUR: ladda sparade rekommendationer ──────────────
+  if (sessionId) {
+    const { data: s } = await sb.from('sessions')
+      .select('*').eq('id', sessionId).single();
+
+    if (s) {
+      document.getElementById('session-lake').textContent       = s.lake_name;
+      document.getElementById('session-fish').textContent       = s.target_fish_name;
+      document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[s.target_fish_id] ?? '🐟';
+      document.getElementById('session-time').textContent       =
+        new Date(s.started_at).toLocaleDateString('sv-SE',
+          { weekday:'long', hour:'2-digit', minute:'2-digit' });
+
+      // Sätt sessionStorage så att "Registrera fångst" fungerar
+      sessionStorage.setItem('selectedLake',
+        JSON.stringify({ id: s.lake_id, name: s.lake_name, lat: 0, lng: 0, county: '' }));
+      sessionStorage.setItem('selectedFish',
+        JSON.stringify({ id: s.target_fish_id, name: s.target_fish_name }));
+
+      if (s.recommendations) {
+        renderRecommendations(s.recommendations);
+      } else {
+        document.getElementById('loading-state').style.display = 'none';
+        const err = document.getElementById('error-state');
+        err.style.display = 'block';
+        err.textContent   = 'Rekommendationerna från denna tur är inte sparade.';
+      }
+    }
+    return; // Öppna inte ny session, anropa inte API
+  }
+
+  // ── NY TUR: hämta rekommendationer och spara ───────────────────
+  const lake = JSON.parse(sessionStorage.getItem('selectedLake') || 'null')
+    ?? SEED_LAKES.find(l => l.id === params.get('lakeId'));
+  const fish = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
+
+  document.getElementById('session-lake').textContent       = lake?.name ?? 'Okänd sjö';
+  document.getElementById('session-fish').textContent       = fish?.name ?? 'Okänd fisk';
+  document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
+  document.getElementById('session-time').textContent       =
+    new Date().toLocaleDateString('sv-SE', { weekday:'long', hour:'2-digit', minute:'2-digit' });
 
   const [{ data: rods }, { data: lures }] = await Promise.all([
     sb.from('rods').select('*').eq('user_id', user.id),
@@ -766,20 +791,32 @@ async function initSessionPage() {
 
   try {
     const res = await fetch('/api/recommend', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body:    JSON.stringify({
         lakeName: lake?.name, fishName: fish?.name,
         rods: rods ?? [], lures: lures ?? [],
       }),
     });
     if (res.status === 401) { location.href = 'auth.html'; return; }
-    renderRecommendations(await res.json());
+    const recData = await res.json();
+    renderRecommendations(recData);
+
+    // Spara session + rekommendationer i ett anrop
+    sb.from('sessions').insert({
+      user_id:          user.id,
+      lake_id:          lake?.id ?? 'unknown',
+      lake_name:        lake?.name ?? '?',
+      target_fish_id:   fish?.id ?? 'unknown',
+      target_fish_name: fish?.name ?? '?',
+      recommendations:  recData,
+    }).then(() => {});
+
   } catch {
     document.getElementById('loading-state').style.display = 'none';
     const err = document.getElementById('error-state');
-    err.style.display  = 'block';
-    err.textContent    = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
+    err.style.display = 'block';
+    err.textContent   = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
   }
 }
 
@@ -812,8 +849,7 @@ async function initHistoryPage() {
       return `
         <div class="session-hist-card" data-id="${s.id}">
           <div style="flex:1;cursor:pointer" class="session-nav"
-               data-lake='${JSON.stringify({id:s.lake_id,name:s.lake_name,lat:0,lng:0,county:""})}'
-               data-lid="${s.lake_id}" data-fid="${s.target_fish_id}">
+               data-sid="${s.id}">
             <div style="font-weight:700;font-size:.9rem">${s.lake_name}</div>
             <div class="sh-fish-row">
               <span>${FISH_EMOJI[s.target_fish_id] ?? '🐟'}</span>
@@ -823,8 +859,7 @@ async function initHistoryPage() {
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <span class="sh-badge session-nav" style="cursor:pointer"
-                  data-lake='${JSON.stringify({id:s.lake_id,name:s.lake_name,lat:0,lng:0,county:""})}'
-                  data-lid="${s.lake_id}" data-fid="${s.target_fish_id}">→</span>
+                  data-sid="${s.id}">→</span>
             <button class="btn-delete-session" data-id="${s.id}"
                     style="background:var(--error-dim);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;color:var(--error);transition:all .15s"
                     title="Radera session">
@@ -834,11 +869,10 @@ async function initHistoryPage() {
         </div>`;
     }).join('');
 
-    // Navigera till session
+    // Navigera till historisk session (utan att starta ny)
     list.querySelectorAll('.session-nav').forEach(el =>
       el.addEventListener('click', () => {
-        sessionStorage.setItem('selectedLake', el.dataset.lake);
-        location.href = `session.html?lakeId=${el.dataset.lid}&fishId=${el.dataset.fid}`;
+        location.href = `session.html?sessionId=${el.dataset.sid}`;
       }));
 
     // Radera session
