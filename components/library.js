@@ -178,6 +178,17 @@ function renderTags() {
   window.__removeTag = tag => { tags = tags.filter(x => x !== tag); };
 }
 
+function renderImagePreview() {
+  if (imageUrl) {
+    document.getElementById('img-preview').src            = imageUrl;
+    document.getElementById('img-preview-wrap').style.display = 'block';
+    document.getElementById('img-buttons').style.display      = 'none';
+  } else {
+    document.getElementById('img-preview-wrap').style.display = 'none';
+    document.getElementById('img-buttons').style.display      = 'grid';
+  }
+}
+
 function showImagePreview(src) {
   document.getElementById('img-preview').src  = src;
   document.getElementById('img-preview-wrap').style.display = 'block';
