@@ -12,7 +12,7 @@
 
 <header class="app-header" id="app-header"></header>
 
-<main class="page-content" style="padding:20px 16px">
+<main class="page-content" style="padding:20px 16px;padding-bottom:120px">
 
   <button class="back-btn mb-5" onclick="history.back()">
     <i data-lucide="chevron-left" class="icon"></i> Tillbaka
@@ -45,12 +45,9 @@
     </div>
   </div>
 
-  <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+  <div style="margin-top:20px">
     <button class="btn btn-primary btn-full btn-lg" id="btn-register-catch">
       <i data-lucide="plus-circle" class="icon"></i> Registrera fångst
-    </button>
-    <button class="btn btn-surface btn-full" id="btn-end-session">
-      <i data-lucide="flag" class="icon"></i> Avsluta tur
     </button>
   </div>
 
@@ -130,6 +127,15 @@
   <p style="text-align:center;font-size:.65rem;color:rgba(255,255,255,.4);padding-bottom:12px;flex-shrink:0">
     Nyp för att zooma · Svep för att panorera
   </p>
+</div>
+
+<!-- Avsluta tur – fast ovanför bottennav -->
+<div style="position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;
+            padding:0 16px;z-index:90">
+  <button id="btn-end-session" class="btn btn-surface btn-full"
+          style="box-shadow:0 -2px 20px rgba(0,0,0,.5);border:1px solid var(--border-soft)">
+    <i data-lucide="flag" class="icon"></i> Avsluta tur
+  </button>
 </div>
 
 <nav id="bottom-nav"></nav>
