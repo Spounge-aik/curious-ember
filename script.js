@@ -493,7 +493,7 @@ async function initLakePage() {
   const srcBadge   = document.getElementById('source-badge');
 
   // Visa skeleton
-  fishSkel.style.display = 'flex';
+  fishSkel.style.display = 'grid';
 
   let fish = [];
   try {
