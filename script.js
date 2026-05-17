@@ -74,19 +74,19 @@ const FISH_DATA = {
   sarv:     { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
 };
 
-// ── Väder (SMHI MetFcst) ──────────────────────────────────────────
+// ── Väder (Open-Meteo – ingen API-nyckel, CORS-fri) ──────────────
 let _weatherCache = {};
 async function fetchWeather(lat, lng) {
   const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
   if (_weatherCache[key]) return _weatherCache[key];
   try {
-    const url = `https://opendata-smhi.se/api/metfcst/v2/geotype/point/lon/${lng.toFixed(6)}/lat/${lat.toFixed(6)}/data.json`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&current=temperature_2m,windspeed_10m,precipitation,weathercode&wind_speed_unit=ms&timezone=Europe%2FStockholm`;
     const r   = await fetch(url);
-    if (!r.ok) throw new Error('SMHI API fel');
+    if (!r.ok) throw new Error('Open-Meteo API fel');
     const d   = await r.json();
-    const params = d.timeSeries?.[0]?.parameters ?? [];
-    const get    = name => params.find(p => p.name === name)?.values?.[0] ?? null;
-    const w = { temp: get('t'), wind: get('ws'), precip: get('pmean'), cloud: get('tcc_mean') };
+    const cur  = d.current ?? {};
+    const get  = name => cur[name] ?? null;
+    const w = { temp: get('temperature_2m'), wind: get('windspeed_10m'), precip: get('precipitation'), code: get('weathercode') };
     _weatherCache[key] = w;
     return w;
   } catch { return null; }
