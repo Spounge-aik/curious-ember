@@ -862,11 +862,16 @@ function initDepthMap(lakeId) {
       if (window.UTIF) {
         const ifds = UTIF.decode(buf);
         UTIF.decodeImage(buf, ifds[0]);
-        const rgba     = UTIF.toRGBA8(ifds[0]);
-        canvas.width   = ifds[0].width;
-        canvas.height  = ifds[0].height;
-        const ctx      = canvas.getContext('2d');
-        const imgData  = new ImageData(new Uint8ClampedArray(rgba.buffer), ifds[0].width, ifds[0].height);
+        const img  = ifds[0];
+        // Dimensioner: försök .width/.height, annars TIFF-taggar t256/t257
+        const w    = img.width  || (img.t256 && img.t256[0]);
+        const h    = img.height || (img.t257 && img.t257[0]);
+        if (!w || !h) throw new Error(`Ogiltiga dimensioner (${w}×${h})`);
+        const rgba    = UTIF.toRGBA8(img);
+        canvas.width  = w;
+        canvas.height = h;
+        const ctx     = canvas.getContext('2d');
+        const imgData = new ImageData(new Uint8ClampedArray(rgba.buffer), w, h);
         ctx.putImageData(imgData, 0, 0);
         loading.style.display = 'none';
         canvas.style.display  = 'block';
