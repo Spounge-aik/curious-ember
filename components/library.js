@@ -15,6 +15,25 @@ let _allLures   = []; // orfiltrerat, för chips
 
 const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
+// ── Detalj-overlay ─────────────────────────────────────────────────
+export function openDetailOverlay(title, heroHTML, fields) {
+  const overlay = document.getElementById('detail-overlay');
+  if (!overlay) return;
+  document.getElementById('detail-title').textContent = title;
+  document.getElementById('detail-hero').innerHTML    = heroHTML;
+  document.getElementById('detail-body').innerHTML    = fields.map(f => f ? `
+    <div class="detail-field">
+      <div class="detail-label">${f.label}</div>
+      ${f.chips
+        ? `<div class="detail-chips">${f.chips.map(c => `<span class="tag">${c}</span>`).join('')}</div>`
+        : `<div class="detail-value">${f.value}</div>`}
+    </div>` : '').join('');
+  overlay.classList.add('open');
+  overlay.scrollTop = 0;
+  if (window.lucide) lucide.createIcons();
+  document.getElementById('detail-close').onclick = () => overlay.classList.remove('open');
+}
+
 export function initLibrary() {
   const sb = getSupabase();
   _sbRef = sb;
@@ -314,15 +333,15 @@ function lureCard(item, isLure) {
         .map(v => `<span class="lure-chip">${v}</span>`).join('')
     : '';
   return `
-    <div class="lure-card card-interactive">
-      <div class="lure-img-wrap">
+    <div class="lure-card card-interactive" data-detail-id="${item.id}">
+      <div class="lure-img-wrap" style="cursor:pointer">
         ${imgContent}
         ${chips ? `<div class="lure-overlay">${chips}</div>` : ''}
       </div>
-      <div class="lure-body">
+      <div class="lure-body" style="cursor:pointer">
         <div class="lure-name">${item.name}</div>
         ${item.description ? `<div class="lure-reason">${item.description}</div>` : ''}
-        <div style="display:flex;gap:6px;margin-top:10px">
+        <div style="display:flex;gap:6px;margin-top:10px" onclick="event.stopPropagation()">
           <button class="btn btn-ghost btn-sm" data-edit="${item.id}" style="flex:1">Redigera</button>
           <button class="btn btn-sm" data-del="${item.id}" style="flex:1;background:var(--error-dim);color:var(--error);border-radius:var(--radius-sm)">Ta bort</button>
         </div>
@@ -330,8 +349,28 @@ function lureCard(item, isLure) {
     </div>`;
 }
 
-// ── Koppla redigera/ta bort ───────────────────────────────────────
+// ── Koppla redigera/ta bort + detaljvy ───────────────────────────
 function attachActions(container, items, sb) {
+  // Klick på kort → detaljvy
+  container.querySelectorAll('[data-detail-id]').forEach(card =>
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-edit],[data-del]')) return;
+      const item   = items.find(i => i.id === card.dataset.detailId);
+      if (!item) return;
+      const isLure = currentTab === 'lures';
+      const hero   = item.image_url
+        ? `<img class="detail-img" src="${item.image_url}" alt="${item.name}">`
+        : `<div class="detail-emoji-hero">${isLure ? '🪝' : '🎣'}</div>`;
+      const fields = [
+        item.description && { label: 'Beskrivning', value: item.description },
+        isLure && item.type  && { label: 'Typ',   value: item.type },
+        isLure && item.color && { label: 'Färg',  value: item.color },
+        isLure && item.size  && { label: 'Vikt',  value: item.size + ' g' },
+        (item.tags||[]).length && { label: 'Fiskarter', chips: item.tags },
+      ].filter(Boolean);
+      openDetailOverlay(item.name, hero, fields);
+    }));
+
   container.querySelectorAll('[data-edit]').forEach(btn =>
     btn.addEventListener('click', e => {
       e.stopPropagation();

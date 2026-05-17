@@ -3,7 +3,7 @@ import { renderHeader }           from './components/header.js';
 import { initAuth }               from './components/auth.js';
 import { initMap }                from './components/map.js';
 import { renderRecommendations }  from './components/recommendations.js';
-import { initLibrary }            from './components/library.js';
+import { initLibrary, openDetailOverlay } from './components/library.js';
 
 // ── Supabase ─────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://mixrkpghedwpjrrlgrxe.supabase.co';
@@ -1098,6 +1098,26 @@ async function initCatchesPage() {
         </button>
       </div>`;
   }).join('');
+
+  // Klick på kort → detaljvy
+  catchList.querySelectorAll('.catch-card').forEach(card =>
+    card.addEventListener('click', e => {
+      if (e.target.closest('.btn-del-catch')) return;
+      const c = catches.find(x => x.id === card.dataset.id);
+      if (!c) return;
+      const hero = c.image_url
+        ? `<img class="detail-img" src="${c.image_url}" alt="${c.fish_name}">`
+        : `<div class="detail-emoji-hero">🐟</div>`;
+      const dateStr = new Date(c.caught_at).toLocaleDateString('sv-SE',
+        { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const fields = [
+        c.length_cm && { label: 'Längd',       value: c.length_cm + ' cm' },
+        c.weight_g  && { label: 'Vikt',        value: c.weight_g  + ' g'  },
+        c.lake_name && { label: 'Sjö',         value: c.lake_name          },
+                       { label: 'Datum & tid', value: dateStr              },
+      ].filter(Boolean);
+      openDetailOverlay(c.fish_name, hero, fields);
+    }));
 
   // Radera med bekräftelse
   catchList.querySelectorAll('.btn-del-catch').forEach(btn =>
