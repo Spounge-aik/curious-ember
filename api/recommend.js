@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const response = await callClaude({
-      model:      'claude-opus-4-5',
+      model:      'claude-sonnet-4-6',
       max_tokens: 1024,
       system:     'Du är expert på sportfiske i Sverige. Svara ENBART med giltig JSON.',
       messages: [{
