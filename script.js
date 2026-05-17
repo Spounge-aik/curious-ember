@@ -1276,38 +1276,63 @@ async function initCatchesPage() {
 
   content.style.display = 'block';
 
-  // ── Rekord per art ────────────────────────────
-  const records = {};
-  const byFish  = {};
+  // ── Rekord per art (spara hela fångst-objektet) ───────────────────
+  const recordCatch = {}; // fish_name → bästa fångsten (tyngst, annars längst)
+  const byFish      = {};
   catches.forEach(c => {
     byFish[c.fish_name] = (byFish[c.fish_name] ?? 0) + 1;
-    if (!records[c.fish_name]) records[c.fish_name] = { weight: 0, length: 0 };
-    if ((c.weight_g  ?? 0) > records[c.fish_name].weight) records[c.fish_name].weight = c.weight_g;
-    if ((c.length_cm ?? 0) > records[c.fish_name].length) records[c.fish_name].length = c.length_cm;
+    const prev = recordCatch[c.fish_name];
+    if (!prev ||
+        (c.weight_g  ?? 0) > (prev.weight_g  ?? 0) ||
+        (!prev.weight_g && (c.length_cm ?? 0) > (prev.length_cm ?? 0))) {
+      recordCatch[c.fish_name] = c;
+    }
   });
 
   const recordsRow = document.getElementById('records-row');
   if (recordsRow) {
-    const fishId = name => Object.entries(FISH_EMOJI).find(([,v]) => {
-      const fd = FISH_DATA[name.toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/å/g,'a')];
-      return false;
-    })?.[0];
-    recordsRow.innerHTML = Object.entries(records).map(([name, r]) => {
+    recordsRow.innerHTML = Object.entries(recordCatch).map(([name, c]) => {
       const emoji = FISH_EMOJI[Object.keys(FISH_DATA).find(k =>
-        (FISH_DATA[k]?.name ?? k) === name ||
-        catches.find(c => c.fish_name === name && c.fish_id === k)
+        catches.find(x => x.fish_name === name && x.fish_id === k)
       )] ?? '🐟';
-      const wTxt = r.weight ? `${r.weight.toLocaleString('sv-SE')} g` : '—';
-      const lTxt = r.length ? `${r.length} cm` : '—';
+      const wTxt = c.weight_g  ? `${c.weight_g.toLocaleString('sv-SE')} g` : '—';
+      const lTxt = c.length_cm ? `${c.length_cm} cm` : '—';
       return `
-        <div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border-soft);
-                    border-radius:var(--radius-lg);padding:12px 16px;min-width:130px;text-align:center">
+        <div class="record-card" data-id="${c.id}"
+             style="flex-shrink:0;background:var(--surface);border:1px solid var(--border-soft);
+                    border-radius:var(--radius-lg);padding:12px 16px;min-width:130px;text-align:center;
+                    cursor:pointer;transition:border-color .15s"
+             onmouseenter="this.style.borderColor='var(--accent)'"
+             onmouseleave="this.style.borderColor='var(--border-soft)'">
           <div style="font-size:28px;margin-bottom:4px">${emoji}</div>
           <div style="font-weight:700;font-size:.8rem;margin-bottom:6px">${name}</div>
           <div style="font-size:.72rem;color:var(--accent);font-weight:700">🏆 ${wTxt}</div>
           <div style="font-size:.72rem;color:var(--text-3)">${lTxt}</div>
         </div>`;
     }).join('');
+
+    // Klick → öppna detalj-overlay för den aktuella rekord-fångsten
+    recordsRow.querySelectorAll('.record-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const c = catches.find(x => x.id === card.dataset.id);
+        if (!c) return;
+        const hero = c.image_url
+          ? `<img class="detail-img" src="${c.image_url}" alt="${c.fish_name}">`
+          : `<div class="detail-emoji-hero">🐟</div>`;
+        const dateStr = new Date(c.caught_at).toLocaleDateString('sv-SE',
+          { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        const fields = [
+          c.length_cm      && { label: 'Längd',  value: c.length_cm + ' cm' },
+          c.weight_g       && { label: 'Vikt',   value: c.weight_g.toLocaleString('sv-SE') + ' g' },
+          c.lake_name      && { label: 'Sjö',    value: c.lake_name },
+                              { label: 'Datum',  value: dateStr },
+          c.rod_name       && { label: 'Spö',    value: c.rod_name },
+          c.lure_name      && { label: 'Bete',   value: c.lure_name },
+          c.weather_temp != null && { label: 'Väder', value: `${c.weather_temp}°C · ${c.weather_wind ?? '?'} m/s` },
+        ].filter(Boolean);
+        openDetailOverlay(c.fish_name, hero, fields);
+      });
+    });
   }
 
   // ── Chart.js global mörkt tema ────────────────
