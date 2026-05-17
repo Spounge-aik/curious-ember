@@ -703,6 +703,44 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
   margin-top: 2px;
 }
 
+/* ── Landing page kort ─────────────────────────────────────────── */
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  cursor: pointer;
+}
+.landing-card:active,
+.landing-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 4px 20px rgba(232,112,26,.12);
+}
+.landing-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.landing-card-title {
+  font-weight: 700;
+  font-size: .95rem;
+}
+.landing-card-sub {
+  font-size: .75rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
 /* Fångst-listkort */
 .catch-card {
   background: var(--surface);

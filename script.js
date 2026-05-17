@@ -307,10 +307,11 @@ function initPage() {
   if (page === 'lake.html')        return initLakePage();
   if (page === 'session.html')     return initSessionPage();
   if (page === 'end-session.html') return initEndSessionPage();
-  if (page === 'history.html')  return initHistoryPage();
-  if (page === 'catch.html')    return initCatchPage();
-  if (page === 'catches.html')  return initCatchesPage();
-  initHomePage();
+  if (page === 'history.html')     return initHistoryPage();
+  if (page === 'catch.html')       return initCatchPage();
+  if (page === 'catches.html')     return initCatchesPage();
+  if (page === 'lakes.html')       return initHomePage();
+  // index.html = landing page, ingen init behövs
 }
 
 // ── Hemsida – Wizard ──────────────────────────────────────────────

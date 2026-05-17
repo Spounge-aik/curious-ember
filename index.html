@@ -1,183 +1,62 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <title>Fiskeappen – Fiske</title>
+  <title>Fiskeappen</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { corePlugins: { preflight: false } }</script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <header class="app-header" id="app-header"></header>
 
-<main style="padding:20px 16px">
+<main class="page-content" style="padding:24px 16px 40px">
 
-  <!-- Steg-indikator -->
-  <div class="wizard-steps-bar">
-    <div class="wizard-dot active" id="dot-1"></div>
-    <div class="wizard-line"></div>
-    <div class="wizard-dot" id="dot-2"></div>
-    <div class="wizard-line"></div>
-    <div class="wizard-dot" id="dot-3"></div>
+  <div style="margin-bottom:28px">
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:4px">Välkommen</h1>
+    <p class="text-sm text-muted">Vad vill du göra idag?</p>
   </div>
 
-  <!-- ═══════════════════════════════
-       STEG 1 – Välj plats
-  ═══════════════════════════════ -->
-  <div class="wizard-step active" id="step-1">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
 
-    <div class="mb-5">
-      <h1 style="font-size:1.4rem;font-weight:700">Välj fiskevatten</h1>
-      <p class="text-sm text-muted mt-1">GPS-lokalisering eller sök manuellt</p>
-    </div>
-
-    <div class="flex gap-3 mb-4">
-      <button class="btn btn-primary btn-half btn-pulse" id="btn-gps">
-        <i data-lucide="navigation" class="icon"></i> Hitta min sjö
-      </button>
-      <button class="btn btn-surface btn-half" id="btn-search-toggle">
-        <i data-lucide="search" class="icon"></i> Sök sjö
-      </button>
-    </div>
-
-    <div id="search-box" class="mb-4" style="display:none">
-      <input type="text" id="search-input" placeholder="Sök sjö, t.ex. Vättern…" autocomplete="off">
-    </div>
-
-    <p id="status-msg" style="text-align:center;font-size:.78rem;color:var(--text-3);margin-bottom:12px;display:none"></p>
-
-    <!-- GPS skeleton -->
-    <div id="gps-skeleton" class="mb-4" style="display:none">
-      <div class="skeleton" style="height:76px;border-radius:20px"></div>
-    </div>
-
-    <!-- GPS-widget -->
-    <div id="gps-widget" class="mb-4" style="display:none">
-      <div class="gps-card">
-        <div class="gps-dot"></div>
-        <div style="flex:1">
-          <p class="gps-label">Live GPS · Närmaste sjö</p>
-          <p class="gps-name" id="gps-lake-name">—</p>
-          <p class="gps-dist" id="gps-lake-dist"></p>
-        </div>
-        <button class="btn btn-surface btn-sm" id="gps-select-btn">Välj</button>
+    <a href="lakes.html" class="landing-card">
+      <div class="landing-card-icon" style="background:rgba(232,112,26,.15)">
+        <i data-lucide="map-pin" style="width:28px;height:28px;color:#E8701A"></i>
       </div>
-    </div>
+      <div class="landing-card-title">Sjöar</div>
+      <div class="landing-card-sub">Hitta fiskevatten och starta tur</div>
+    </a>
 
-    <!-- Karta -->
-    <div id="map" class="mb-4" style="display:none"></div>
-
-    <!-- Sjölista skeleton -->
-    <div id="lake-skeleton" style="display:none">
-      <p class="section-title">Närmaste sjöar</p>
-      <div class="flex flex-col gap-2">
-        <div class="skeleton" style="height:62px;border-radius:20px"></div>
-        <div class="skeleton" style="height:62px;border-radius:20px"></div>
-        <div class="skeleton" style="height:62px;border-radius:20px"></div>
-        <div class="skeleton" style="height:62px;border-radius:20px"></div>
+    <a href="history.html" class="landing-card">
+      <div class="landing-card-icon" style="background:rgba(74,158,202,.15)">
+        <i data-lucide="fish" style="width:28px;height:28px;color:#4A9ECA"></i>
       </div>
-    </div>
+      <div class="landing-card-title">Mitt Fiske</div>
+      <div class="landing-card-sub">Dina fisketurer och historik</div>
+    </a>
 
-    <!-- Sjölista -->
-    <div id="lake-section" style="display:none">
-      <p class="section-title" id="lake-list-title">Närmaste sjöar</p>
-      <div id="lake-list" class="flex flex-col gap-2"></div>
-    </div>
-
-  </div>
-
-  <!-- ═══════════════════════════════
-       STEG 2 – Välj fisk
-  ═══════════════════════════════ -->
-  <div class="wizard-step" id="step-2">
-
-    <!-- Vald sjö-chip + ändra -->
-    <div class="flex items-center justify-between mb-5">
-      <div>
-        <p class="section-title mb-1">Fiskevatten</p>
-        <div class="selected-chip" id="selected-lake-chip" onclick="window.__goToStep(1)">
-          <span class="chip-dot"></span>
-          <span id="chip-lake-name">—</span>
-          <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-3)"></i>
-        </div>
+    <a href="catches.html" class="landing-card">
+      <div class="landing-card-icon" style="background:rgba(93,187,106,.15)">
+        <i data-lucide="award" style="width:28px;height:28px;color:#5DBB6A"></i>
       </div>
-    </div>
+      <div class="landing-card-title">Fångster</div>
+      <div class="landing-card-sub">Statistik och personliga rekord</div>
+    </a>
 
-    <div class="mb-5">
-      <h2 style="font-size:1.2rem;font-weight:700">Vad vill du fiska?</h2>
-      <p class="text-sm text-muted mt-1" id="fish-count-text">Hämtar fiskarter från Artportalen…</p>
-    </div>
-
-    <!-- Fisk skeleton -->
-    <div id="fish-skeleton" class="home-fish-grid mb-4" style="display:none">
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-      <div class="skeleton" style="height:120px;border-radius:20px"></div>
-    </div>
-
-    <!-- Fiskgrid -->
-    <div id="fish-grid" class="home-fish-grid mb-4" style="display:none"></div>
-
-    <!-- Expanderad fiskinfo-panel -->
-    <div id="fish-info-panel" style="display:none"></div>
-
-  </div>
-
-  <!-- ═══════════════════════════════
-       STEG 3 – Utrustning & Start
-  ═══════════════════════════════ -->
-  <div class="wizard-step" id="step-3">
-
-    <!-- Vald sjö + fisk-chips -->
-    <div class="flex gap-2 flex-wrap mb-5">
-      <div class="selected-chip" onclick="window.__goToStep(1)">
-        <span class="chip-dot"></span>
-        <span id="chip-lake-name-3">—</span>
-        <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-3)"></i>
+    <a href="library.html" class="landing-card">
+      <div class="landing-card-icon" style="background:rgba(202,74,158,.15)">
+        <i data-lucide="anchor" style="width:28px;height:28px;color:#CA4A9E"></i>
       </div>
-      <div class="selected-chip" onclick="window.__goToStep(2)">
-        <span id="chip-fish-emoji" style="font-size:14px">🐟</span>
-        <span id="chip-fish-name">—</span>
-        <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-3)"></i>
-      </div>
-    </div>
-
-    <!-- Hero-sektion -->
-    <div class="start-hero mb-5">
-      <p class="hero-label">Redo att fiska</p>
-      <p class="hero-title" id="hero-title">Bästa valet för — i —</p>
-      <p class="hero-sub" id="hero-sub">Baserat på Artportalen-data och ditt bibliotek</p>
-    </div>
-
-    <!-- Utrustning preview -->
-    <div id="eq-preview-section" style="display:none;margin-bottom:20px">
-      <p class="section-title">Från ditt bibliotek</p>
-      <div id="eq-preview-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>
-    </div>
-
-    <!-- Logga in-hint om ej inloggad -->
-    <div id="login-hint" class="alert alert-info mb-5" style="display:none;align-items:center;gap:10px">
-      <i data-lucide="lock" style="width:16px;height:16px;flex-shrink:0"></i>
-      <span style="font-size:.8rem"><a href="auth.html" style="color:var(--accent);font-weight:700">Logga in</a> för att se AI-rekommendationer från ditt utrustningsbibliotek</span>
-    </div>
-
-    <!-- Starta fiske-knapp -->
-    <button class="btn btn-primary btn-full btn-lg btn-pulse" id="btn-start" style="font-size:1.05rem">
-      <i data-lucide="fish" class="icon"></i> Starta fiske
-    </button>
+      <div class="landing-card-title">Utrustning</div>
+      <div class="landing-card-sub">Spön, beten och bibliotek</div>
+    </a>
 
   </div>
 
 </main>
 
-<nav id="bottom-nav"></nav>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
