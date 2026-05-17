@@ -867,6 +867,9 @@ function initDepthMap(lakeId) {
         lbImg.src              = imgEl.src;
         lb.style.display       = 'flex';
         document.body.style.overflow = 'hidden';
+        // Tillåt pinch-zoom i lightboxen
+        document.querySelector('meta[name=viewport]').content =
+          'width=device-width, initial-scale=1';
       });
     };
     imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Djupkarta saknas för denna sjö</span>'; };
@@ -1261,7 +1264,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const lb    = document.getElementById('map-lightbox');
   const close = document.getElementById('map-lightbox-close');
   if (lb && close) {
-    const closeLb = () => { lb.style.display = 'none'; document.body.style.overflow = ''; };
+    const closeLb = () => {
+      lb.style.display = 'none';
+      document.body.style.overflow = '';
+      // Återställ viewport – blockera zoom på bassidan
+      document.querySelector('meta[name=viewport]').content =
+        'width=device-width, initial-scale=1, maximum-scale=1';
+    };
     close.addEventListener('click', closeLb);
     lb.addEventListener('click', e => { if (e.target === lb) closeLb(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
