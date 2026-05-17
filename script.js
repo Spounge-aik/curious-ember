@@ -20,6 +20,7 @@ const GBIF_KEYS = {
   lax:7595433,   oring:8215487,  rodding:4284021, harr:5203999,
   mort:2359706,  braxen:9809222, rudor:2366645,   id:4409643,
   asp:5851603,   sik:2351211,    bjorkna:2359471,  sarv:2362635, karp:4286975,
+  regnbage:2360866,
 };
 const KEY_TO_ID = Object.fromEntries(Object.entries(GBIF_KEYS).map(([id,k])=>[k,id]));
 
@@ -27,6 +28,7 @@ const FISH_EMOJI = {
   gadda:'🐟', abborre:'🐠', gos:'🐡', lake:'🦑', lax:'🐟',
   oring:'🐟', rodding:'🐟', harr:'🐟', karp:'🐡', rudor:'🐠',
   braxen:'🐟', id:'🐟', asp:'🐟', sik:'🐟', mort:'🐟', sarv:'🐟', bjorkna:'🐟',
+  regnbage:'🌈',
 };
 
 const FISH_INFO = {
@@ -46,14 +48,20 @@ const FISH_INFO = {
   sik:     { name:'Sik',     desc:'Norra Sverige',           tag:'Vanlig' },
   mort:    { name:'Mört',    desc:'Vanligaste fiskarten',    tag:'Vanlig' },
   sarv:    { name:'Sarv',    desc:'Grunda vegetationsrika',  tag:'Vanlig' },
-  bjorkna: { name:'Björkna', desc:'Vanlig kustsjö',         tag:'Vanlig' },
+  bjorkna:  { name:'Björkna',          desc:'Vanlig kustsjö',          tag:'Vanlig'      },
+  regnbage: { name:'Regnbåge',         desc:'Inplanterad sportfisk',   tag:'Inplanterad' },
 };
 
-async function fetchFishForLake(lat, lng) {
+async function fetchFishForLake(lat, lng, lake = null) {
   const MIN_OBS   = 5;
   const RADII     = [0.02, 0.04, 0.07]; // börja litet (~2km), utöka vid behov
   const YEAR_FROM = new Date().getFullYear() - 10; // senaste 10 åren
   const YEAR_TO   = new Date().getFullYear();
+
+  // Inplanterade arter som alltid visas oavsett GBIF-data
+  const stocked = (lake?.stockedFish ?? [])
+    .map(id => ({ id, ...FISH_INFO[id], tag: 'Inplanterad', _count: 0 }))
+    .filter(f => f.name);
 
   for (const deg of RADII) {
     const counts = {};
@@ -61,6 +69,8 @@ async function fetchFishForLake(lat, lng) {
     // Hämta observationsantal per art individuellt → exakt count per art
     await Promise.all(
       Object.entries(GBIF_KEYS).map(async ([fishId, gbifKey]) => {
+        // Skippa arter som redan finns som inplanterade
+        if (lake?.stockedFish?.includes(fishId)) return;
         try {
           const url = `https://api.gbif.org/v1/occurrence/search?taxonKey=${gbifKey}` +
             `&decimalLatitude=${lat-deg},${lat+deg}` +
@@ -74,10 +84,10 @@ async function fetchFishForLake(lat, lng) {
       })
     );
 
-    // Om vi hittade minst 3 arter i denna radie → nöjda
+    // Om vi hittade minst 3 vilda arter i denna radie → nöjda
     if (Object.keys(counts).length >= 3) {
       const maxCount = Math.max(...Object.values(counts));
-      return Object.entries(counts)
+      const wildFish = Object.entries(counts)
         .map(([id, count]) => ({
           id,
           ...FISH_INFO[id],
@@ -88,16 +98,19 @@ async function fetchFishForLake(lat, lng) {
         }))
         .filter(f => f.name)
         .sort((a, b) => b._count - a._count);
+
+      // Inplanterade fiskar läggs sist
+      return [...wildFish, ...stocked];
     }
   }
 
-  // Fallback: inga fynd ens vid 7km de senaste 10 åren
-  return [];
+  // Fallback: inga vilda fynd – returnera bara inplanterade om sådana finns
+  return stocked;
 }
 
 // ── Sjödata ───────────────────────────────────────────────────────
 const SEED_LAKES = [
-  {id:'trekanten',name:'Trekanten',lat:59.308,lng:18.005,county:'Stockholm'},
+  {id:'trekanten',name:'Trekanten',lat:59.308,lng:18.005,county:'Stockholm',stockedFish:['regnbage']},
   {id:'judarn',name:'Judarn',lat:59.343,lng:17.924,county:'Stockholm'},
   {id:'drevviken',name:'Drevviken',lat:59.208,lng:18.105,county:'Stockholm'},
   {id:'magelungen',name:'Magelungen',lat:59.229,lng:18.088,county:'Stockholm'},
@@ -349,7 +362,7 @@ function initHomePage() {
     countTxt.textContent   = 'Hämtar fiskarter från Artportalen…';
 
     try {
-      allFish = await fetchFishForLake(lake.lat, lake.lng);
+      allFish = await fetchFishForLake(lake.lat, lake.lng, lake);
     } catch { allFish = []; }
 
     if (!allFish.length) allFish = [
@@ -497,7 +510,7 @@ async function initLakePage() {
 
   let fish = [];
   try {
-    fish = await fetchFishForLake(lake.lat, lake.lng);
+    fish = await fetchFishForLake(lake.lat, lake.lng, lake);
     srcBadge.style.display = fish.length ? 'inline-flex' : 'none';
   } catch { fish = []; }
 
