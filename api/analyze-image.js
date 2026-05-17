@@ -56,7 +56,7 @@ Svara ENBART med giltig JSON, inga förklaringar:
   "name": "kortnamn på produkten (max 4 ord)",
   "type": "en av: wobler, jig, spinnare, fluga, dropshot, softbait, spö, annat",
   "color": "huvudfärgen på betet eller spöet",
-  "size": "uppskattad längd eller storlek, t.ex. 7cm eller Medium",
+  "size": "uppskattad vikt i gram, t.ex. 12 eller 28",
   "fish_tags": ["lista på 1-3 svenska fiskarter detta passar för, t.ex. gädda, abborre, gösen"],
   "description": "en mening på svenska om betetets användning och karaktär"
 }`,

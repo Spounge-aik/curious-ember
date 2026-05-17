@@ -48,7 +48,7 @@ function lureCard(item, isBest) {
     ? `<img src="${item.image_url}" alt="${item.name}">`
     : `<span style="font-size:36px">🪝</span>`;
 
-  const chips = [item.color, item.size, item.type]
+  const chips = [item.color, item.size ? item.size + 'g' : null, item.type]
     .filter(Boolean)
     .map(v => `<span class="lure-chip">${v}</span>`).join('');
 
