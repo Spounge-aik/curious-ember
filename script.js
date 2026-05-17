@@ -997,7 +997,10 @@ async function initCatchPage() {
     });
 
     if (error) {
-      errorEl.textContent   = 'Kunde inte spara fångsten. Försök igen.';
+      const isNoTable = error.message?.includes('relation') || error.code === '42P01';
+      errorEl.textContent   = isNoTable
+        ? 'Tabellen "catches" saknas – kör SQL-migreringen i Supabase Dashboard.'
+        : `Fel: ${error.message}`;
       errorEl.style.display = 'block';
       saveBtn.disabled      = false;
       saveBtn.innerHTML     = '<i data-lucide="save" class="icon"></i> Spara fångst';
