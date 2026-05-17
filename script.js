@@ -855,7 +855,20 @@ function initDepthMap(lakeId) {
 
     const loading = document.getElementById('depth-map-loading');
     const imgEl   = document.getElementById('depth-map-img');
-    imgEl.onload  = () => { loading.style.display = 'none'; imgEl.style.display = 'block'; mapLoaded = true; };
+    imgEl.onload = () => {
+      loading.style.display = 'none';
+      imgEl.style.display   = 'block';
+      mapLoaded = true;
+
+      // Öppna lightbox vid klick/tryck
+      imgEl.addEventListener('click', () => {
+        const lb    = document.getElementById('map-lightbox');
+        const lbImg = document.getElementById('map-lightbox-img');
+        lbImg.src              = imgEl.src;
+        lb.style.display       = 'flex';
+        document.body.style.overflow = 'hidden';
+      });
+    };
     imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Djupkarta saknas för denna sjö</span>'; };
     imgEl.src     = `/maps/${lakeId}.png`;
   });
@@ -1242,5 +1255,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRegister.addEventListener('click', () => {
       location.href = 'catch.html';
     });
+  }
+
+  // Djupkarta lightbox – stäng
+  const lb    = document.getElementById('map-lightbox');
+  const close = document.getElementById('map-lightbox-close');
+  if (lb && close) {
+    const closeLb = () => { lb.style.display = 'none'; document.body.style.overflow = ''; };
+    close.addEventListener('click', closeLb);
+    lb.addEventListener('click', e => { if (e.target === lb) closeLb(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
   }
 });
