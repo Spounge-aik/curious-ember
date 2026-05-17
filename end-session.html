@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Avsluta tur</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header" id="app-header"></header>
+
+<main class="page-content" style="padding:20px 16px">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold">Avsluta tur</h1>
+    <p class="text-sm text-muted mt-1" id="end-session-meta">Sparar anteckningar…</p>
+  </div>
+
+  <!-- Sammanfattning -->
+  <div class="mb-6" style="background:var(--surface);border-radius:var(--radius-lg);padding:16px;border:1px solid var(--border-soft)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span id="end-fish-emoji" style="font-size:32px">🐟</span>
+      <div>
+        <div id="end-lake-name" class="font-bold"></div>
+        <div id="end-fish-name" class="text-sm text-muted"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anteckningar -->
+  <div class="mb-5">
+    <label class="section-title" style="display:block;margin-bottom:8px">Anteckningar om turen</label>
+    <textarea id="end-note" placeholder="Hur gick det? Vilket väder, vilka platser funkade, tips inför nästa gång…"
+              style="width:100%;min-height:140px;resize:vertical;padding:12px 14px;
+                     border-radius:var(--radius);background:var(--surface);
+                     border:1px solid var(--border-soft);color:var(--text);
+                     font-size:.9rem;font-family:inherit;line-height:1.6"></textarea>
+  </div>
+
+  <div id="end-success" class="alert alert-success mb-4" style="display:none">
+    <i data-lucide="check-circle" class="icon"></i> Anteckning sparad!
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <button class="btn btn-primary btn-full btn-lg" id="btn-save-end">
+      <i data-lucide="save" class="icon"></i> Spara och avsluta
+    </button>
+    <button class="btn btn-surface btn-full" id="btn-skip-end">
+      Avsluta utan anteckning
+    </button>
+  </div>
+
+</main>
+
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>

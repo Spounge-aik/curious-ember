@@ -303,9 +303,10 @@ async function guardAuth() {
 }
 
 function initPage() {
-  if (page === 'library.html')  return initLibrary();
-  if (page === 'lake.html')     return initLakePage();
-  if (page === 'session.html')  return initSessionPage();
+  if (page === 'library.html')     return initLibrary();
+  if (page === 'lake.html')        return initLakePage();
+  if (page === 'session.html')     return initSessionPage();
+  if (page === 'end-session.html') return initEndSessionPage();
   if (page === 'history.html')  return initHistoryPage();
   if (page === 'catch.html')    return initCatchPage();
   if (page === 'catches.html')  return initCatchesPage();
@@ -1604,6 +1605,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Avsluta tur-knapp
+  const btnEnd = document.getElementById('btn-end-session');
+  if (btnEnd) {
+    btnEnd.addEventListener('click', () => { location.href = 'end-session.html'; });
+  }
+
   // Djupkarta lightbox – stäng
   const lb    = document.getElementById('map-lightbox');
   const close = document.getElementById('map-lightbox-close');
@@ -1620,3 +1627,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
   }
 });
+
+// ── Avsluta tur ───────────────────────────────────────────────────
+async function initEndSessionPage() {
+  const sb   = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const lake = JSON.parse(sessionStorage.getItem('selectedLake') || 'null');
+  const fish = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
+
+  document.getElementById('end-lake-name').textContent = lake?.name ?? 'Okänd sjö';
+  document.getElementById('end-fish-name').textContent = fish?.name ?? '';
+  document.getElementById('end-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
+  document.getElementById('end-session-meta').textContent =
+    lake?.name ? `${lake.name} · ${new Date().toLocaleDateString('sv-SE')}` : '';
+
+  async function saveAndLeave() {
+    const note = document.getElementById('end-note').value.trim();
+    if (note && lake?.id) {
+      await sb.from('lake_notes').insert({ user_id: user.id, lake_id: lake.id, note });
+      document.getElementById('end-success').style.display = 'flex';
+      await new Promise(r => setTimeout(r, 800));
+    }
+    location.href = 'history.html';
+  }
+
+  document.getElementById('btn-save-end').addEventListener('click', saveAndLeave);
+  document.getElementById('btn-skip-end').addEventListener('click', () => { location.href = 'history.html'; });
+}
