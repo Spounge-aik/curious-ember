@@ -879,7 +879,7 @@ async function initSessionPage() {
     const recData = await res.json();
     renderRecommendations(recData);
 
-    // Spara session + rekommendationer i ett anrop
+    // Spara session + rekommendationer och lagra ID
     sb.from('sessions').insert({
       user_id:          user.id,
       lake_id:          lake?.id ?? 'unknown',
@@ -887,7 +887,9 @@ async function initSessionPage() {
       target_fish_id:   fish?.id ?? 'unknown',
       target_fish_name: fish?.name ?? '?',
       recommendations:  recData,
-    }).then(() => {});
+    }).select('id').single().then(({ data }) => {
+      if (data?.id) sessionStorage.setItem('currentSessionId', data.id);
+    });
 
   } catch {
     document.getElementById('loading-state').style.display = 'none';
@@ -1644,16 +1646,35 @@ async function initEndSessionPage() {
   document.getElementById('end-session-meta').textContent =
     lake?.name ? `${lake.name} · ${new Date().toLocaleDateString('sv-SE')}` : '';
 
+  // Säkerställ att sessionen alltid sparas (AI kan vara av)
+  const existingId = sessionStorage.getItem('currentSessionId');
+  if (!existingId && lake?.id) {
+    sb.from('sessions').insert({
+      user_id:          user.id,
+      lake_id:          lake.id,
+      lake_name:        lake.name,
+      target_fish_id:   fish?.id   ?? 'unknown',
+      target_fish_name: fish?.name ?? 'Okänd fisk',
+      recommendations:  null,
+    }).select('id').single().then(({ data }) => {
+      if (data?.id) sessionStorage.setItem('currentSessionId', data.id);
+    });
+  }
+
   async function saveAndLeave() {
     const note = document.getElementById('end-note').value.trim();
     if (note && lake?.id) {
       await sb.from('lake_notes').insert({ user_id: user.id, lake_id: lake.id, note });
       document.getElementById('end-success').style.display = 'flex';
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
     }
+    sessionStorage.removeItem('currentSessionId');
     location.href = 'history.html';
   }
 
   document.getElementById('btn-save-end').addEventListener('click', saveAndLeave);
-  document.getElementById('btn-skip-end').addEventListener('click', () => { location.href = 'history.html'; });
+  document.getElementById('btn-skip-end').addEventListener('click', () => {
+    sessionStorage.removeItem('currentSessionId');
+    location.href = 'history.html';
+  });
 }
