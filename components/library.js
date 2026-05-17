@@ -198,72 +198,95 @@ function showImagePreview(src) {
 async function handleImageFile(sb, file) {
   if (!file) return;
 
-  // Visa preview direkt
-  const reader = new FileReader();
-  reader.onload = e => showImagePreview(e.target.result);
-  reader.readAsDataURL(file);
+  // Visa preview direkt via FileReader
+  const previewReader = new FileReader();
+  previewReader.onload = e => showImagePreview(e.target.result);
+  previewReader.readAsDataURL(file);
+
+  // Starta AI-analys direkt (parallellt med uppladdning)
+  const analyzePromise = analyzeImage(file);
 
   // Ladda upp till Supabase
-  const { data: { user } } = await sb.auth.getUser();
-  const path = `${user.id}/${Date.now()}-${file.name}`;
-  const { error } = await sb.storage.from('equipment-images').upload(path, file);
-  if (!error) {
-    const { data } = sb.storage.from('equipment-images').getPublicUrl(path);
-    imageUrl = data.publicUrl;
-  }
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    const path = `${user.id}/${Date.now()}-${file.name}`;
+    const { error } = await sb.storage.from('equipment-images').upload(path, file);
+    if (!error) {
+      const { data } = sb.storage.from('equipment-images').getPublicUrl(path);
+      imageUrl = data.publicUrl;
+    }
+  } catch { /* tyst uppladdningsfel */ }
 
-  // Analysera med Claude Vision
-  await analyzeImage(file);
+  await analyzePromise;
 }
 
 async function analyzeImage(file) {
   const analyzing = document.getElementById('ai-analyzing');
   const banner    = document.getElementById('ai-suggestion-banner');
-  analyzing.style.display = 'block';
-  banner.style.display    = 'none';
+  const aiBanner  = document.getElementById('ai-suggestion-banner');
+
+  analyzing.style.display = 'flex';
+  aiBanner.style.display  = 'none';
 
   try {
-    // Konvertera till base64
-    const base64 = await fileToBase64(file);
+    const base64    = await fileToBase64(file);
     const mediaType = file.type || 'image/jpeg';
 
-    const res  = await fetch('/api/analyze-image', {
+    const res = await fetch('/api/analyze-image', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ imageBase64: base64, mediaType }),
     });
 
-    if (!res.ok) throw new Error('API-fel');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const suggestion = await res.json();
+    if (suggestion.error) throw new Error(suggestion.error);
+
     applyAISuggestion(suggestion);
     banner.style.display = 'flex';
-  } catch {
-    // Tyst fel — låt användaren fylla i manuellt
-  } finally {
-    analyzing.style.display = 'none';
+
+    // Scrolla ner till fälten så användaren ser AI-förslagen
+    document.getElementById('item-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  } catch (err) {
+    // Visa ett diskret felmeddelande istället för tyst fel
+    analyzing.innerHTML = `
+      <p style="font-size:.8rem;color:var(--error);display:flex;align-items:center;justify-content:center;gap:6px">
+        <i data-lucide="alert-circle" style="width:14px;height:14px;stroke:currentColor;flex-shrink:0"></i>
+        AI-analys misslyckades – fyll i fälten manuellt
+      </p>`;
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { analyzing.style.display = 'none'; }, 3500);
+    return;
   }
+
+  analyzing.style.display = 'none';
 }
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = e => resolve(e.target.result.split(',')[1]);
-    reader.onerror = reject;
-
-    // Komprimera stora bilder innan base64
+    // Komprimera stora bilder med canvas innan base64-konvertering
     const img = new Image();
-    img.onload = () => {
-      const MAX = 1024;
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+    img.onerror = () => reject(new Error('Kunde inte läsa bilden'));
+    img.onload  = () => {
+      const MAX    = 1024;
+      const scale  = Math.min(1, MAX / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');
-      canvas.width  = img.width  * scale;
-      canvas.height = img.height * scale;
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => reader.readAsDataURL(blob), 'image/jpeg', 0.85);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Canvas toBlob misslyckades')); return; }
+        const reader = new FileReader();
+        reader.onload  = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.85);
     };
     img.src = URL.createObjectURL(file);
   });
 }
+
 
 function applyAISuggestion(s) {
   const set = (id, val) => {

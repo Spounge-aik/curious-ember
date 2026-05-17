@@ -81,10 +81,9 @@
     <input type="file" id="file-camera"  accept="image/*" capture="environment" style="display:none">
     <input type="file" id="file-gallery" accept="image/*" style="display:none">
 
-    <div id="ai-analyzing" style="display:none;text-align:center;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:16px">
-      <p style="font-size:.8rem;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px">
-        <i data-lucide="cpu" class="icon"></i> Analyserar bilden…
-      </p>
+    <div id="ai-analyzing" style="display:none;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:16px">
+      <i data-lucide="cpu" style="width:15px;height:15px;color:var(--accent);flex-shrink:0;animation:spin 1.2s linear infinite"></i>
+      <p style="font-size:.8rem;color:var(--accent);font-weight:700">AI analyserar bilden…</p>
     </div>
 
     <div id="ai-suggestion-banner" style="display:none;background:var(--accent-dim);border:1px solid rgba(249,115,22,.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:8px">
