@@ -1017,24 +1017,24 @@ async function initCatchPage() {
     saveBtn.textContent = 'Sparar…';
     errorEl.style.display = 'none';
 
-    // Ladda upp bild om det finns en
+    // Ladda upp bild om det finns en (tyst fel – fångsten sparas ändå)
     let imageUrl = null;
     if (catchImageFile) {
-      const ext      = (catchImageFile.name?.split('.').pop() || 'jpg').toLowerCase();
-      const filePath = `${user.id}/${Date.now()}.${ext}`;
-      const { data: uploadData, error: uploadErr } = await sb.storage
-        .from('catch-images')
-        .upload(filePath, catchImageFile, { upsert: true, contentType: catchImageFile.type || 'image/jpeg' });
-      if (uploadErr) {
-        errorEl.textContent   = `Bilduppladdning misslyckades: ${uploadErr.message}`;
-        errorEl.style.display = 'block';
-        saveBtn.disabled      = false;
-        saveBtn.innerHTML     = '<i data-lucide="save" class="icon"></i> Spara fångst';
-        if (window.lucide) lucide.createIcons();
-        return;
+      try {
+        const ext      = (catchImageFile.name?.split('.').pop() || 'jpg').toLowerCase();
+        const filePath = `${user.id}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await sb.storage
+          .from('catch-images')
+          .upload(filePath, catchImageFile, { upsert: true, contentType: catchImageFile.type || 'image/jpeg' });
+        if (!uploadErr) {
+          const { data: urlData } = sb.storage.from('catch-images').getPublicUrl(filePath);
+          imageUrl = urlData?.publicUrl ?? null;
+        } else {
+          console.warn('Bilduppladdning misslyckades (fångsten sparas utan bild):', uploadErr.message);
+        }
+      } catch (e) {
+        console.warn('Bilduppladdning fel:', e);
       }
-      const { data: urlData } = sb.storage.from('catch-images').getPublicUrl(filePath);
-      imageUrl = urlData?.publicUrl ?? null;
     }
 
     const lengthVal   = document.getElementById('catch-length').value;
