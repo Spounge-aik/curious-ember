@@ -681,6 +681,61 @@ async function initLakePage() {
   }
   renderFish();
 
+  // ── Sjöanteckningar ───────────────────────────
+  const sb2 = getSupabase();
+  const { data: { user: noteUser } } = await sb2.auth.getUser();
+
+  async function loadNotes() {
+    const list = document.getElementById('lake-notes-list');
+    if (!list || !noteUser) return;
+    const { data: notes } = await sb2.from('lake_notes')
+      .select('*').eq('user_id', noteUser.id).eq('lake_id', lake.id)
+      .order('created_at', { ascending: false });
+    if (!notes?.length) {
+      list.innerHTML = '<p class="text-xs text-muted" style="padding:4px 0">Inga anteckningar ännu.</p>';
+      return;
+    }
+    list.innerHTML = notes.map(n => {
+      const d = new Date(n.created_at).toLocaleDateString('sv-SE', { day:'numeric', month:'short', year:'numeric' });
+      return `
+        <div style="background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+                    padding:10px 12px;display:flex;gap:10px;align-items:flex-start" data-note-id="${n.id}">
+          <div style="flex:1">
+            <p style="font-size:.83rem;color:var(--text);line-height:1.5;white-space:pre-wrap">${n.note}</p>
+            <p style="font-size:.7rem;color:var(--text-3);margin-top:4px">${d}</p>
+          </div>
+          <button class="btn-del-note" data-id="${n.id}"
+                  style="background:none;border:none;color:var(--text-3);cursor:pointer;padding:2px 4px;flex-shrink:0"
+                  title="Ta bort">
+            <i data-lucide="x" style="width:14px;height:14px;stroke:currentColor"></i>
+          </button>
+        </div>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+    list.querySelectorAll('.btn-del-note').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        await sb2.from('lake_notes').delete().eq('id', btn.dataset.id);
+        btn.closest('[data-note-id]').remove();
+        if (!list.children.length)
+          list.innerHTML = '<p class="text-xs text-muted" style="padding:4px 0">Inga anteckningar ännu.</p>';
+      }));
+  }
+
+  const saveNoteBtn = document.getElementById('btn-save-note');
+  if (saveNoteBtn && noteUser) {
+    loadNotes();
+    saveNoteBtn.addEventListener('click', async () => {
+      const textarea = document.getElementById('lake-note-input');
+      const text = textarea.value.trim();
+      if (!text) return;
+      saveNoteBtn.disabled = true;
+      await sb2.from('lake_notes').insert({ user_id: noteUser.id, lake_id: lake.id, note: text });
+      textarea.value = '';
+      saveNoteBtn.disabled = false;
+      loadNotes();
+    });
+  }
+
   async function showLakeFishPanel(f, lake) {
     if (!f) { selWrap.style.display = 'none'; return; }
     const fd = FISH_DATA[f.id] ?? {};
@@ -1066,6 +1121,40 @@ async function initCatchPage() {
     fetchWeather(lake.lat, lake.lng).then(w => { currentWeather = w; });
   }
 
+  // ── Platskarta ────────────────────────────────
+  let catchLat = null, catchLng = null;
+  const mapWrap   = document.getElementById('catch-map-wrap');
+  const noLakeMsg = document.getElementById('catch-no-lake');
+
+  if (lake?.lat && lake?.lng && window.L) {
+    mapWrap.style.display   = 'block';
+    noLakeMsg.style.display = 'none';
+
+    // Fix Leaflet marker icon paths
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
+    const catchMap = L.map('catch-map').setView([lake.lat, lake.lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    }).addTo(catchMap);
+
+    let pinMarker = null;
+    const coordsEl = document.getElementById('catch-coords');
+    catchMap.on('click', e => {
+      catchLat = parseFloat(e.latlng.lat.toFixed(6));
+      catchLng = parseFloat(e.latlng.lng.toFixed(6));
+      if (pinMarker) pinMarker.setLatLng(e.latlng);
+      else pinMarker = L.marker(e.latlng).addTo(catchMap);
+      coordsEl.textContent = `📍 ${catchLat}, ${catchLng}`;
+      coordsEl.style.color = 'var(--accent)';
+    });
+  }
+
   // ── Foto ──────────────────────────────────────
   let catchImageFile = null;
 
@@ -1214,9 +1303,11 @@ async function initCatchPage() {
       lure_id:        selectedLure?.id   ?? null,
       lure_name:      selectedLure?.name ?? null,
       lure_image_url: selectedLure?.image_url ?? null,
-      weather_temp:   currentWeather?.temp  ?? null,
-      weather_wind:   currentWeather?.wind  ?? null,
+      weather_temp:   currentWeather?.temp   ?? null,
+      weather_wind:   currentWeather?.wind   ?? null,
       weather_precip: currentWeather?.precip ?? null,
+      catch_lat:      catchLat,
+      catch_lng:      catchLng,
     });
 
     if (error) {
@@ -1479,6 +1570,7 @@ async function initCatchesPage() {
         c.rod_name       && { label: 'Spö',     value: c.rod_name                    },
         c.lure_name      && { label: 'Bete',    value: c.lure_name                   },
         c.weather_temp != null && { label: 'Väder', value: `${c.weather_temp}°C · ${c.weather_wind ?? '?'} m/s vind` },
+        c.catch_lat    != null && { label: 'Plats', value: `<a href="https://www.openstreetmap.org/?mlat=${c.catch_lat}&mlon=${c.catch_lng}&zoom=16" target="_blank" style="color:var(--accent);text-decoration:none">📍 Visa på karta</a>` },
       ].filter(Boolean);
       openDetailOverlay(c.fish_name, hero, fields);
     }));

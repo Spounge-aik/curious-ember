@@ -39,6 +39,21 @@
 
   <div id="fish-grid" class="grid grid-cols-2 gap-3" style="display:none"></div>
 
+  <!-- Anteckningar -->
+  <div id="lake-notes-section" class="mt-6">
+    <p class="section-title mb-3">Mina anteckningar</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+      <textarea id="lake-note-input" placeholder="T.ex. bra vid vindstilla, norra viken producerar på morgonen…"
+                style="width:100%;min-height:80px;resize:vertical;padding:10px 12px;border-radius:var(--radius);
+                       background:var(--surface);border:1px solid var(--border-soft);color:var(--text);
+                       font-size:.85rem;font-family:inherit;line-height:1.5"></textarea>
+      <button id="btn-save-note" class="btn btn-surface" style="align-self:flex-end">
+        <i data-lucide="save" style="width:14px;height:14px"></i> Spara
+      </button>
+    </div>
+    <div id="lake-notes-list" class="flex flex-col gap-2"></div>
+  </div>
+
   <div id="selected-wrap" class="cta-sticky" style="display:none">
     <div class="card card-body flex items-center gap-3 mb-3">
       <i data-lucide="fish" id="selected-fish-emoji" style="width:28px;height:28px;color:var(--accent)"></i>

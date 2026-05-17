@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { corePlugins: { preflight: false } }</script>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
 
@@ -87,6 +88,20 @@
       </div>
     </div>
 
+    <!-- Plats -->
+    <div>
+      <label class="section-title" style="display:block;margin-bottom:8px">Plats (valfritt)</label>
+      <div id="catch-map-wrap" style="display:none">
+        <div id="catch-map" style="height:220px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border-soft)"></div>
+        <p id="catch-coords" class="text-xs text-muted" style="margin-top:6px;text-align:center">
+          Tryck på kartan för att markera var du stod
+        </p>
+      </div>
+      <p id="catch-no-lake" class="text-xs text-muted" style="padding:4px 0">
+        Välj en sjö i startsteget för att markera plats
+      </p>
+    </div>
+
     <div id="catch-pb-msg" class="alert alert-success" style="display:none;font-weight:700"></div>
 
     <div id="catch-success-msg" class="alert alert-success" style="display:none">
@@ -104,6 +119,7 @@
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module" src="script.js"></script>
 </body>
 </html>
