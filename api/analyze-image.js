@@ -1,5 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+// Höj body-gränsen till 10 MB (standard 1 MB räcker inte för base64-bilder)
+export const config = {
+  api: { bodyParser: { sizeLimit: '10mb' } },
+};
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export default async function handler(req, res) {

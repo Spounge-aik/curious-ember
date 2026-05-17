@@ -4,9 +4,12 @@ let currentTab = 'rods';
 let editingId  = null;
 let tags       = [];
 let imageUrl   = null;
+let _cropperInstance = null;
+let _sbRef = null;
 
 export function initLibrary() {
   const sb = getSupabase();
+  _sbRef = sb;
   loadItems(sb);
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -28,15 +31,19 @@ export function initLibrary() {
     if (e.target === document.getElementById('modal-overlay')) closeModal();
   });
 
-  // Kamera & galleri
+  // Kamera & galleri → öppna crop-vy direkt
   document.getElementById('btn-camera').addEventListener('click', () =>
     document.getElementById('file-camera').click());
   document.getElementById('btn-gallery').addEventListener('click', () =>
     document.getElementById('file-gallery').click());
   document.getElementById('file-camera').addEventListener('change', e =>
-    handleImageFile(sb, e.target.files[0]));
+    openCropper(e.target.files[0]));
   document.getElementById('file-gallery').addEventListener('change', e =>
-    handleImageFile(sb, e.target.files[0]));
+    openCropper(e.target.files[0]));
+
+  // Crop-modal knappar
+  document.getElementById('crop-cancel').addEventListener('click', closeCropper);
+  document.getElementById('crop-confirm').addEventListener('click', () => confirmCrop(sb));
 
   // Rensa bild
   window.__clearImage = () => {
@@ -47,6 +54,69 @@ export function initLibrary() {
     document.getElementById('file-camera').value = '';
     document.getElementById('file-gallery').value = '';
   };
+}
+
+// ── Cropper ────────────────────────────────────────────────────────
+function openCropper(file) {
+  if (!file) return;
+  const overlay  = document.getElementById('crop-overlay');
+  const cropImg  = document.getElementById('crop-img');
+
+  const url = URL.createObjectURL(file);
+  cropImg.src = url;
+  overlay.style.display = 'flex';
+
+  // Vänta på att bilden laddas innan Cropper initieras
+  cropImg.onload = () => {
+    if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
+    _cropperInstance = new Cropper(cropImg, {
+      aspectRatio: 1,          // kvadratisk beskärning
+      viewMode:    1,
+      autoCropArea: 0.9,
+      movable:     true,
+      zoomable:    true,
+      rotatable:   false,
+      scalable:    false,
+    });
+  };
+}
+
+function closeCropper() {
+  document.getElementById('crop-overlay').style.display = 'none';
+  if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
+  document.getElementById('file-camera').value  = '';
+  document.getElementById('file-gallery').value = '';
+}
+
+async function confirmCrop(sb) {
+  if (!_cropperInstance) return;
+
+  // Hämta beskuren canvas → konvertera till Blob
+  const canvas = _cropperInstance.getCroppedCanvas({ maxWidth: 1024, maxHeight: 1024 });
+  closeCropper();
+
+  canvas.toBlob(async blob => {
+    if (!blob) return;
+
+    // Visa preview direkt
+    showImagePreview(URL.createObjectURL(blob));
+
+    // Starta AI-analys parallellt med uppladdning
+    const analyzePromise = analyzeImageBlob(blob);
+
+    // Ladda upp till Supabase
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      const path = `${user.id}/${Date.now()}-crop.jpg`;
+      const { error } = await sb.storage.from('equipment-images').upload(path, blob, { contentType: 'image/jpeg' });
+      if (!error) {
+        const { data } = sb.storage.from('equipment-images').getPublicUrl(path);
+        imageUrl = data.publicUrl;
+      }
+    } catch { /* tyst uppladdningsfel */ }
+
+    await analyzePromise;
+  }, 'image/jpeg', 0.88);
 }
 
 async function loadItems(sb) {
@@ -195,47 +265,22 @@ function showImagePreview(src) {
   document.getElementById('img-buttons').style.display      = 'none';
 }
 
-async function handleImageFile(sb, file) {
-  if (!file) return;
-
-  // Visa preview direkt via FileReader
-  const previewReader = new FileReader();
-  previewReader.onload = e => showImagePreview(e.target.result);
-  previewReader.readAsDataURL(file);
-
-  // Starta AI-analys direkt (parallellt med uppladdning)
-  const analyzePromise = analyzeImage(file);
-
-  // Ladda upp till Supabase
-  try {
-    const { data: { user } } = await sb.auth.getUser();
-    const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error } = await sb.storage.from('equipment-images').upload(path, file);
-    if (!error) {
-      const { data } = sb.storage.from('equipment-images').getPublicUrl(path);
-      imageUrl = data.publicUrl;
-    }
-  } catch { /* tyst uppladdningsfel */ }
-
-  await analyzePromise;
-}
-
-async function analyzeImage(file) {
+// analyzeImageBlob – tar en Blob (från cropper eller FileReader) och kör Claude Vision
+async function analyzeImageBlob(blob) {
   const analyzing = document.getElementById('ai-analyzing');
   const banner    = document.getElementById('ai-suggestion-banner');
-  const aiBanner  = document.getElementById('ai-suggestion-banner');
 
   analyzing.style.display = 'flex';
-  aiBanner.style.display  = 'none';
+  banner.style.display    = 'none';
 
   try {
-    const base64    = await fileToBase64(file);
-    const mediaType = file.type || 'image/jpeg';
+    // Blob → base64 (ingen extra komprimering behövs – cropper ger redan rätt storlek)
+    const base64 = await blobToBase64(blob);
 
     const res = await fetch('/api/analyze-image', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ imageBase64: base64, mediaType }),
+      body:    JSON.stringify({ imageBase64: base64, mediaType: 'image/jpeg' }),
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -244,48 +289,31 @@ async function analyzeImage(file) {
 
     applyAISuggestion(suggestion);
     banner.style.display = 'flex';
-
-    // Scrolla ner till fälten så användaren ser AI-förslagen
     document.getElementById('item-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   } catch (err) {
-    // Visa ett diskret felmeddelande istället för tyst fel
     analyzing.innerHTML = `
-      <p style="font-size:.8rem;color:var(--error);display:flex;align-items:center;justify-content:center;gap:6px">
+      <p style="font-size:.8rem;color:var(--error);display:flex;align-items:center;gap:6px">
         <i data-lucide="alert-circle" style="width:14px;height:14px;stroke:currentColor;flex-shrink:0"></i>
-        AI-analys misslyckades – fyll i fälten manuellt
+        AI-analys misslyckades (${err.message}) – fyll i fälten manuellt
       </p>`;
     if (window.lucide) lucide.createIcons();
-    setTimeout(() => { analyzing.style.display = 'none'; }, 3500);
+    setTimeout(() => { analyzing.style.display = 'none'; }, 4000);
     return;
   }
 
   analyzing.style.display = 'none';
 }
 
-function fileToBase64(file) {
+function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
-    // Komprimera stora bilder med canvas innan base64-konvertering
-    const img = new Image();
-    img.onerror = () => reject(new Error('Kunde inte läsa bilden'));
-    img.onload  = () => {
-      const MAX    = 1024;
-      const scale  = Math.min(1, MAX / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
-        if (!blob) { reject(new Error('Canvas toBlob misslyckades')); return; }
-        const reader = new FileReader();
-        reader.onload  = e => resolve(e.target.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      }, 'image/jpeg', 0.85);
-    };
-    img.src = URL.createObjectURL(file);
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 }
+
 
 
 function applyAISuggestion(s) {

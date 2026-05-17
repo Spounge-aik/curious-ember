@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { corePlugins: { preflight: false } }</script>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 </head>
 <body>
 
@@ -119,7 +120,21 @@
   </div>
 </div>
 
+<!-- Crop-modal -->
+<div id="crop-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:2000;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;flex-shrink:0">
+    <button id="crop-cancel" style="background:var(--surface);border:none;color:var(--text-2);border-radius:12px;padding:10px 18px;font-family:inherit;font-size:.85rem;cursor:pointer">Avbryt</button>
+    <p style="font-size:.85rem;font-weight:700;color:var(--text)">Beskär bild</p>
+    <button id="crop-confirm" style="background:var(--accent);border:none;color:#fff;border-radius:12px;padding:10px 18px;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer">Klar ✓</button>
+  </div>
+  <div style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:0 16px">
+    <img id="crop-img" src="" alt="" style="max-width:100%;max-height:100%;display:block">
+  </div>
+  <p style="text-align:center;font-size:.75rem;color:var(--text-3);padding:12px">Nyp för att zooma · Dra för att flytta</p>
+</div>
+
 <nav id="bottom-nav"></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
 </body>
