@@ -117,12 +117,15 @@
 
       <div>
         <div class="flex gap-2">
-          <input type="text" id="tag-input" placeholder="Tagg, t.ex. gädda">
+          <input type="text" id="tag-input" placeholder="Lägg till fiskart, t.ex. gädda">
           <button class="btn btn-ghost btn-sm" id="btn-add-tag" style="padding:10px 14px">
             <i data-lucide="plus" class="icon"></i>
           </button>
         </div>
         <div id="tag-list" class="flex flex-wrap gap-2 mt-2"></div>
+        <p id="tag-hint" style="font-size:.72rem;color:var(--text-3);margin-top:6px;display:none">
+          AI har lagt till taggar nedan – tryck × för att ta bort
+        </p>
       </div>
 
       <div class="flex gap-3 pt-1">

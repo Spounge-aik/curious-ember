@@ -387,10 +387,15 @@ function addTag() {
 }
 
 function renderTags() {
-  document.getElementById('tag-list').innerHTML = tags.map(t =>
-    `<span class="tag" style="cursor:pointer" onclick="(()=>{window.__removeTag('${t}');this.remove()})()">${t} ×</span>`
-  ).join('');
-  window.__removeTag = tag => { tags = tags.filter(x => x !== tag); };
+  document.getElementById('tag-list').innerHTML = tags.length
+    ? tags.map(t =>
+        `<span class="tag" style="display:inline-flex;align-items:center;gap:5px">
+          ${t}
+          <button onclick="window.__removeTag('${t}')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:.9rem;line-height:1;padding:0 2px" title="Ta bort">×</button>
+        </span>`
+      ).join('')
+    : '';
+  window.__removeTag = tag => { tags = tags.filter(x => x !== tag); renderTags(); };
 }
 
 function renderImagePreview() {
@@ -487,6 +492,8 @@ function applyAISuggestion(s) {
       if (tag && tag !== '...' && tag.length > 1 && !tags.includes(tag)) tags.push(tag);
     });
     renderTags();
+    const hint = document.getElementById('tag-hint');
+    if (hint) hint.style.display = tags.length ? 'block' : 'none';
   }
 
   // Visa alltid lure-fält om betetyp identifieras
