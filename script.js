@@ -1098,10 +1098,16 @@ async function initSessionPage() {
     ?? SEED_LAKES.find(l => l.id === params.get('lakeId'));
   const fish = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
 
-  document.getElementById('session-lake').textContent       = lake?.name ?? 'Okänd sjö';
-  document.getElementById('session-fish').textContent       = fish?.name ?? 'Okänd fisk';
-  document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[fish?.id] ?? '🐟';
-  document.getElementById('session-time').textContent       =
+  let currentFish = fish;
+
+  function updateFishHeader(f) {
+    document.getElementById('session-fish').textContent       = f?.name ?? 'Okänd fisk';
+    document.getElementById('session-fish-emoji').textContent = FISH_EMOJI[f?.id] ?? '🐟';
+  }
+
+  document.getElementById('session-lake').textContent = lake?.name ?? 'Okänd sjö';
+  updateFishHeader(currentFish);
+  document.getElementById('session-time').textContent =
     new Date().toLocaleDateString('sv-SE', { weekday:'long', hour:'2-digit', minute:'2-digit' });
 
   const weatherRef = {};
@@ -1115,72 +1121,115 @@ async function initSessionPage() {
     sb.from('lures').select('*').eq('user_id', user.id),
   ]);
 
-  // Hoppa över AI om det är avstängt
-  if (!isAiEnabled()) {
-    document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('rec-content').style.display   = 'block';
-    document.getElementById('tip-box').style.display       = 'block';
-    document.getElementById('tip-text').textContent        =
-      'AI-rekommendationer är avstängda. Slå på AI-knappen (✨) i toppen för att aktivera.';
-    return;
+  // ── Byt fiskart ──────────────────────────────────────────────────
+  const FISH_LIST = Object.entries(FISH_INFO).map(([id, info]) => ({ id, ...info })).filter(f => f.name);
+  const picker     = document.getElementById('fish-picker');
+  const pickerList = document.getElementById('fish-picker-list');
+
+  if (picker && pickerList) {
+    pickerList.innerHTML = FISH_LIST.map(f => `
+      <button class="fish-picker-item" data-id="${f.id}"
+              style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);
+                     background:none;border:1px solid var(--border-soft);cursor:pointer;width:100%;text-align:left;
+                     color:var(--text);font-family:inherit;transition:border-color .15s">
+        <span style="font-size:22px">${FISH_EMOJI[f.id] ?? '🐟'}</span>
+        <span style="font-weight:600;font-size:.9rem">${f.name}</span>
+      </button>`).join('');
+
+    document.getElementById('btn-change-fish')?.addEventListener('click', () => {
+      picker.style.display = 'block';
+      if (window.lucide) lucide.createIcons();
+    });
+    document.getElementById('fish-picker-close')?.addEventListener('click', () => {
+      picker.style.display = 'none';
+    });
+    picker.addEventListener('click', e => { if (e.target === picker) picker.style.display = 'none'; });
+
+    pickerList.querySelectorAll('.fish-picker-item').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const newFish = FISH_LIST.find(f => f.id === btn.dataset.id);
+        if (!newFish) return;
+        currentFish = newFish;
+        sessionStorage.setItem('selectedFish', JSON.stringify(newFish));
+        updateFishHeader(newFish);
+        picker.style.display = 'none';
+        await fetchRecommendations(newFish);
+      }));
   }
 
-  try {
-    // Bygg konditionskontext för AI
-    const w       = await fetchWeather(lake?.lat, lake?.lng).catch(() => null);
-    const moon    = getMoonPhase();
-    const sun     = lake?.lat ? getSunTimes(lake.lat, lake.lng) : null;
-    const pressMap = { rising: 'Stigande lufttryck (↗ bra fiskeförhållanden)', stable: 'Stabilt lufttryck', falling: 'Fallande lufttryck (↘ fisken äter sällan)', unknown: '' };
-    const storedClarity = sessionStorage.getItem('waterClarity') || '';
-    const storedWeight  = sessionStorage.getItem('targetWeight')  || '';
-    const clarityMap    = {
-      clear:          'Klart vatten – naturfärgade beten fungerar bäst',
-      slightly_murky: 'Lätt grumligt vatten – halvljusa färger rekommenderas',
-      murky:          'Grumligt vatten – ljusa kontrasterande beten ger bäst resultat',
-      dark:           'Mycket mörkt vatten – starkt lysande eller UV-aktiva beten krävs',
-    };
-    const conditions = [
-      w?.temp     !== null ? `Temp: ${w.temp}°C`             : '',
-      w?.wind     !== null ? `Vind: ${w.wind} m/s`           : '',
-      w?.pressure !== null ? pressMap[w.pressureTrend] ?? '' : '',
-      `Månfas: ${moon.emoji} ${moon.name}`,
-      sun?.isGoldenHour ? 'Just nu: gryning/skymning – fisken är extra aktiv' : '',
-      sun ? `Gryning ${sun.sunrise.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}, skymning ${sun.sunset.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}` : '',
-      storedClarity ? clarityMap[storedClarity] ?? '' : '',
-      storedWeight  ? `Fiskar siktar på ${parseInt(storedWeight) >= 1000 ? (parseInt(storedWeight)/1000).toFixed(1) + ' kg' : storedWeight + ' g'} fisk` : '',
-    ].filter(Boolean).join('. ');
+  // ── Hämta rekommendationer ────────────────────────────────────────
+  async function fetchRecommendations(targetFish) {
+    if (!isAiEnabled()) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('rec-content').style.display   = 'block';
+      document.getElementById('tip-box').style.display       = 'block';
+      document.getElementById('tip-text').textContent        =
+        'AI-rekommendationer är avstängda. Slå på AI-knappen (✨) i toppen för att aktivera.';
+      return;
+    }
 
-    const res = await fetch('/api/recommend', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        lakeName: lake?.name, fishName: fish?.name,
-        rods: rods ?? [], lures: lures ?? [],
-        conditions,
-      }),
-    });
-    if (res.status === 401) { location.href = 'auth.html'; return; }
-    const recData = await res.json();
-    renderRecommendations(recData);
+    document.getElementById('loading-state').style.display = 'flex';
+    document.getElementById('rec-content').style.display   = 'none';
+    document.getElementById('error-state').style.display   = 'none';
 
-    // Spara session + rekommendationer och lagra ID
-    sb.from('sessions').insert({
-      user_id:          user.id,
-      lake_id:          lake?.id ?? 'unknown',
-      lake_name:        lake?.name ?? '?',
-      target_fish_id:   fish?.id ?? 'unknown',
-      target_fish_name: fish?.name ?? '?',
-      recommendations:  recData,
-    }).select('id').single().then(({ data }) => {
-      if (data?.id) sessionStorage.setItem('currentSessionId', data.id);
-    });
+    try {
+      const w        = await fetchWeather(lake?.lat, lake?.lng).catch(() => null);
+      const moon     = getMoonPhase();
+      const sun      = lake?.lat ? getSunTimes(lake.lat, lake.lng) : null;
+      const pressMap = { rising: 'Stigande lufttryck (↗ bra fiskeförhållanden)', stable: 'Stabilt lufttryck', falling: 'Fallande lufttryck (↘ fisken äter sällan)', unknown: '' };
+      const storedClarity = sessionStorage.getItem('waterClarity') || '';
+      const storedWeight  = sessionStorage.getItem('targetWeight')  || '';
+      const clarityMap    = {
+        clear:          'Klart vatten – naturfärgade beten fungerar bäst',
+        slightly_murky: 'Lätt grumligt vatten – halvljusa färger rekommenderas',
+        murky:          'Grumligt vatten – ljusa kontrasterande beten ger bäst resultat',
+        dark:           'Mycket mörkt vatten – starkt lysande eller UV-aktiva beten krävs',
+      };
+      const conditions = [
+        w?.temp     !== null ? `Temp: ${w.temp}°C`             : '',
+        w?.wind     !== null ? `Vind: ${w.wind} m/s`           : '',
+        w?.pressure !== null ? pressMap[w.pressureTrend] ?? '' : '',
+        `Månfas: ${moon.emoji} ${moon.name}`,
+        sun?.isGoldenHour ? 'Just nu: gryning/skymning – fisken är extra aktiv' : '',
+        sun ? `Gryning ${sun.sunrise.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}, skymning ${sun.sunset.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}` : '',
+        storedClarity ? clarityMap[storedClarity] ?? '' : '',
+        storedWeight  ? `Fiskar siktar på ${parseInt(storedWeight) >= 1000 ? (parseInt(storedWeight)/1000).toFixed(1) + ' kg' : storedWeight + ' g'} fisk` : '',
+      ].filter(Boolean).join('. ');
 
-  } catch {
-    document.getElementById('loading-state').style.display = 'none';
-    const err = document.getElementById('error-state');
-    err.style.display = 'block';
-    err.textContent   = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
+      const res = await fetch('/api/recommend', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          lakeName: lake?.name, fishName: targetFish?.name,
+          rods: rods ?? [], lures: lures ?? [],
+          conditions,
+        }),
+      });
+      if (res.status === 401) { location.href = 'auth.html'; return; }
+      const recData = await res.json();
+      renderRecommendations(recData);
+
+      sb.from('sessions').insert({
+        user_id:          user.id,
+        lake_id:          lake?.id ?? 'unknown',
+        lake_name:        lake?.name ?? '?',
+        target_fish_id:   targetFish?.id ?? 'unknown',
+        target_fish_name: targetFish?.name ?? '?',
+        recommendations:  recData,
+      }).select('id').single().then(({ data }) => {
+        if (data?.id) sessionStorage.setItem('currentSessionId', data.id);
+      });
+
+    } catch {
+      document.getElementById('loading-state').style.display = 'none';
+      const err = document.getElementById('error-state');
+      err.style.display = 'block';
+      err.textContent   = 'Kunde inte hämta rekommendationer. Kontrollera din anslutning.';
+    }
   }
+
+  // Starta med vald fiskart
+  fetchRecommendations(currentFish);
 }
 
 // ── Djupkarta (sessionssidan) ─────────────────────────────────────

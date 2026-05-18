@@ -21,10 +21,14 @@
   <div class="session-header mb-6">
     <p class="sh-label">Fiske pågår</p>
     <p class="sh-lake" id="session-lake">Laddar…</p>
-    <div class="sh-fish">
-      <i data-lucide="fish" id="session-fish-emoji" style="width:20px;height:20px"></i>
+    <button id="btn-change-fish" class="sh-fish"
+            style="background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:var(--radius);
+                   display:flex;align-items:center;gap:6px;margin:0 auto;transition:background .15s"
+            title="Byt fiskart">
+      <span id="session-fish-emoji" style="font-size:18px">🐟</span>
       <span id="session-fish" class="font-bold"></span>
-    </div>
+      <i data-lucide="pencil" style="width:12px;height:12px;color:var(--text-3)"></i>
+    </button>
     <p class="sh-time" id="session-time"></p>
   </div>
 
@@ -127,6 +131,20 @@
   <p style="text-align:center;font-size:.65rem;color:rgba(255,255,255,.4);padding-bottom:12px;flex-shrink:0">
     Nyp för att zooma · Svep för att panorera
   </p>
+</div>
+
+<!-- Byt fiskart – bottom sheet -->
+<div id="fish-picker" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6)">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+              border-radius:20px 20px 0 0;padding:20px 16px 40px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <p class="font-bold">Välj fiskart</p>
+      <button id="fish-picker-close" class="icon-btn" style="width:28px;height:28px">
+        <i data-lucide="x" style="width:15px;height:15px"></i>
+      </button>
+    </div>
+    <div id="fish-picker-list" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
 </div>
 
 <!-- Avsluta tur – fast ovanför bottennav -->
