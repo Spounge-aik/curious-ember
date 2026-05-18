@@ -250,6 +250,7 @@ function renderGroupedLures(items, sb) {
       noFish.push(lure);
     } else {
       for (const fish of fishTags) {
+        if (filterFish.size > 0 && !filterFish.has(fish)) continue;
         if (!groups.has(fish)) groups.set(fish, new Map());
         const typeKey = (lure.type || 'Övrigt').toLowerCase();
         if (!groups.get(fish).has(typeKey)) groups.get(fish).set(typeKey, []);
