@@ -53,25 +53,27 @@ const FISH_INFO = {
 };
 
 // ── Fiskdata per art ──────────────────────────────────────────────
+// cloudPref: 'cloudy' | 'sunny' | 'neutral'
+// pressureMult: hur känslig arten är för lufttrycksförändringar (1.0 = standard)
 const FISH_DATA = {
-  gadda:    { season:'Vår & tidig höst',   time:'Gryning & förmiddag',   optTemp:[4,16],  goodWind:[0,5] },
-  abborre:  { season:'Sommar & höst',       time:'Gryning & skymning',    optTemp:[12,22], goodWind:[0,6] },
-  gos:      { season:'Sommar',              time:'Natt & tidig morgon',   optTemp:[18,25], goodWind:[0,4] },
-  lake:     { season:'Vinter & vår',        time:'Natt',                  optTemp:[0,10],  goodWind:[0,5] },
-  lax:      { season:'Vår & höst',          time:'Tidig morgon',          optTemp:[6,14],  goodWind:[1,6] },
-  oring:    { season:'Vår & höst',          time:'Gryning & kväll',       optTemp:[6,16],  goodWind:[1,5] },
-  rodding:  { season:'Vår & höst',          time:'Morgon & kväll',        optTemp:[4,14],  goodWind:[0,4] },
-  harr:     { season:'Vår & tidig sommar',  time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,4] },
-  regnbage: { season:'Hela året',           time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,5] },
-  mort:     { season:'Sommar',              time:'Förmiddag & kväll',     optTemp:[15,24], goodWind:[0,5] },
-  braxen:   { season:'Sommar',              time:'Tidig morgon & kväll',  optTemp:[16,24], goodWind:[0,4] },
-  karp:     { season:'Högsommar',           time:'Dag',                   optTemp:[18,26], goodWind:[0,3] },
-  rudor:    { season:'Sommar',              time:'Förmiddag',             optTemp:[18,26], goodWind:[0,4] },
-  id:       { season:'Vår & sommar',        time:'Morgon & kväll',        optTemp:[10,20], goodWind:[0,5] },
-  asp:      { season:'Vår & tidig sommar',  time:'Morgon',                optTemp:[12,20], goodWind:[0,5] },
-  sik:      { season:'Höst & vinter',       time:'Morgon & kväll',        optTemp:[4,12],  goodWind:[0,5] },
-  bjorkna:  { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
-  sarv:     { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
+  gadda:    { season:'Vår & tidig höst',   time:'Gryning & förmiddag',   optTemp:[4,16],  goodWind:[0,5], cloudPref:'sunny',   pressureMult:2.0 },
+  abborre:  { season:'Sommar & höst',       time:'Gryning & skymning',    optTemp:[12,22], goodWind:[0,6], cloudPref:'neutral', pressureMult:1.5 },
+  gos:      { season:'Sommar',              time:'Natt & tidig morgon',   optTemp:[18,25], goodWind:[0,4], cloudPref:'cloudy',  pressureMult:1.0 },
+  lake:     { season:'Vinter & vår',        time:'Natt',                  optTemp:[0,10],  goodWind:[0,5], cloudPref:'cloudy',  pressureMult:0.5 },
+  lax:      { season:'Vår & höst',          time:'Tidig morgon',          optTemp:[6,14],  goodWind:[1,6], cloudPref:'cloudy',  pressureMult:1.0 },
+  oring:    { season:'Vår & höst',          time:'Gryning & kväll',       optTemp:[6,16],  goodWind:[1,5], cloudPref:'cloudy',  pressureMult:1.0 },
+  rodding:  { season:'Vår & höst',          time:'Morgon & kväll',        optTemp:[4,14],  goodWind:[0,4], cloudPref:'cloudy',  pressureMult:0.8 },
+  harr:     { season:'Vår & tidig sommar',  time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,4], cloudPref:'neutral', pressureMult:1.0 },
+  regnbage: { season:'Hela året',           time:'Morgon & kväll',        optTemp:[8,18],  goodWind:[0,5], cloudPref:'neutral', pressureMult:1.0 },
+  mort:     { season:'Sommar',              time:'Förmiddag & kväll',     optTemp:[15,24], goodWind:[0,5], cloudPref:'neutral', pressureMult:0.7 },
+  braxen:   { season:'Sommar',              time:'Tidig morgon & kväll',  optTemp:[16,24], goodWind:[0,4], cloudPref:'neutral', pressureMult:1.0 },
+  karp:     { season:'Högsommar',           time:'Dag',                   optTemp:[18,26], goodWind:[0,3], cloudPref:'sunny',   pressureMult:1.5 },
+  rudor:    { season:'Sommar',              time:'Förmiddag',             optTemp:[18,26], goodWind:[0,4], cloudPref:'sunny',   pressureMult:0.8 },
+  id:       { season:'Vår & sommar',        time:'Morgon & kväll',        optTemp:[10,20], goodWind:[0,5], cloudPref:'neutral', pressureMult:1.0 },
+  asp:      { season:'Vår & tidig sommar',  time:'Morgon',                optTemp:[12,20], goodWind:[0,5], cloudPref:'neutral', pressureMult:1.0 },
+  sik:      { season:'Höst & vinter',       time:'Morgon & kväll',        optTemp:[4,12],  goodWind:[0,5], cloudPref:'neutral', pressureMult:0.8 },
+  bjorkna:  { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4], cloudPref:'neutral', pressureMult:0.7 },
+  sarv:     { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4], cloudPref:'neutral', pressureMult:0.7 },
 };
 
 // ── Viktspann per art [min, max, sliderMax] i gram ────────────────
@@ -110,7 +112,7 @@ async function fetchWeather(lat, lng) {
   if (_weatherCache[key]) return _weatherCache[key];
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}`
-      + `&current=temperature_2m,windspeed_10m,winddirection_10m,precipitation,weathercode,surface_pressure`
+      + `&current=temperature_2m,windspeed_10m,winddirection_10m,precipitation,weathercode,surface_pressure,cloudcover`
       + `&hourly=surface_pressure&past_hours=3&forecast_hours=0`
       + `&wind_speed_unit=ms&timezone=Europe%2FStockholm`;
     const r = await fetch(url);
@@ -136,6 +138,7 @@ async function fetchWeather(lat, lng) {
       windDir:       get('winddirection_10m'),
       precip:        get('precipitation'),
       code:          get('weathercode'),
+      cloudcover:    get('cloudcover'),
       pressure:      pressureNow ? Math.round(pressureNow) : null,
       pressureDiff:  pressureDiff !== null ? Math.round(pressureDiff * 10) / 10 : null,
       pressureTrend,
@@ -240,9 +243,20 @@ function assessWeather(fishId, w, lat, lng) {
     else if (w.precip < 2)    score += 4;
   }
 
-  // Lufttrycksförändring (−15 – +20 p)
-  if (w.pressureTrend === 'rising')       score += 20;
-  else if (w.pressureTrend === 'falling') score = Math.max(0, score - 15);
+  // Lufttrycksförändring – artspecifik känslighet (pressureMult)
+  const pm = fd.pressureMult ?? 1.0;
+  if (w.pressureTrend === 'rising')       score += Math.round(20 * pm);
+  else if (w.pressureTrend === 'falling') score = Math.max(0, score - Math.round(15 * pm));
+
+  // Molnighet – artspecifik preferens (0–10 p)
+  if (w.cloudcover !== null && fd.cloudPref && fd.cloudPref !== 'neutral') {
+    const cloudy = w.cloudcover > 60;
+    const sunny  = w.cloudcover < 30;
+    if (fd.cloudPref === 'cloudy' && cloudy)  score += 10;
+    if (fd.cloudPref === 'cloudy' && sunny)   score = Math.max(0, score - 5);
+    if (fd.cloudPref === 'sunny'  && sunny)   score += 10;
+    if (fd.cloudPref === 'sunny'  && cloudy)  score = Math.max(0, score - 5);
+  }
 
   // Månfas (0–10 p)
   const moon = getMoonPhase();
@@ -255,21 +269,31 @@ function assessWeather(fishId, w, lat, lng) {
     if (sunTimes?.isGoldenHour) score += 15;
   }
 
-  // Max möjligt: 40+30+20+20+10+15 = 135
+  // Max möjligt: 40+30+20+40+10+15+10 = 165 (varierar med pressureMult)
   let rating, color;
-  if      (score >= 100) { rating = '⭐⭐⭐ Utmärkt';  color = 'var(--success)'; }
-  else if (score >= 68)  { rating = '⭐⭐ Bra';        color = 'var(--accent)'; }
-  else if (score >= 38)  { rating = '⭐ Måttlig';      color = '#f59e0b'; }
+  if      (score >= 110) { rating = '⭐⭐⭐ Utmärkt';  color = 'var(--success)'; }
+  else if (score >= 75)  { rating = '⭐⭐ Bra';        color = 'var(--accent)'; }
+  else if (score >= 40)  { rating = '⭐ Måttlig';      color = '#f59e0b'; }
   else                   { rating = '⚠️ Utmanande';    color = 'var(--error)'; }
 
   const tempTxt     = w.temp     !== null ? `${w.temp}°C` : '';
   const windTxt     = w.wind     !== null ? `${w.wind} m/s` : '';
   const pressArr    = { rising: '↗ Stigande', stable: '→ Stabilt', falling: '↘ Fallande', unknown: '' };
-  const pressureTxt = w.pressure !== null ? `${w.pressure} hPa ${pressArr[w.pressureTrend] ?? ''}` : '';
+  const pressureTxt = w.pressure   !== null ? `${w.pressure} hPa ${pressArr[w.pressureTrend] ?? ''}` : '';
+
+  let cloudTxt = '';
+  if (w.cloudcover !== null) {
+    const icon = w.cloudcover > 70 ? '☁️' : w.cloudcover > 30 ? '⛅' : '☀️';
+    const prefMap = { cloudy: 'föredrar mulet', sunny: 'föredrar soligt', neutral: '' };
+    const match = fd.cloudPref === 'cloudy' ? w.cloudcover > 60
+                : fd.cloudPref === 'sunny'  ? w.cloudcover < 30 : null;
+    const matchTxt = match === true ? ' ✓' : match === false ? ' –' : '';
+    cloudTxt = `${icon} ${w.cloudcover}%${matchTxt}`;
+  }
 
   return { rating, color, score, moon, sunTimes,
            details: [tempTxt, windTxt].filter(Boolean).join(' · '),
-           pressureTxt };
+           pressureTxt, cloudTxt };
 }
 
 async function fetchFishForLake(lat, lng, lake = null) {
@@ -792,6 +816,7 @@ function openFishOverlay(f, lake) {
       row.innerHTML = `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`;
       let extra = `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`;
       if (a.pressureTxt) extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
+      if (a.cloudTxt)    extra += `<div class="fic-row"><span>☁️ Molnighet</span><span style="font-size:.8rem">${a.cloudTxt}</span></div>`;
       extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
       if (a.sunTimes) {
         const fmt  = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
@@ -1186,9 +1211,10 @@ async function initSessionPage() {
         dark:           'Mycket mörkt vatten – starkt lysande eller UV-aktiva beten krävs',
       };
       const conditions = [
-        w?.temp     !== null ? `Temp: ${w.temp}°C`             : '',
-        w?.wind     !== null ? `Vind: ${w.wind} m/s`           : '',
-        w?.pressure !== null ? pressMap[w.pressureTrend] ?? '' : '',
+        w?.temp       !== null ? `Temp: ${w.temp}°C`             : '',
+        w?.wind       !== null ? `Vind: ${w.wind} m/s`           : '',
+        w?.cloudcover !== null ? `Molnighet: ${w.cloudcover}% (${w.cloudcover > 70 ? 'mulet' : w.cloudcover > 30 ? 'halvmulet' : 'klart'})` : '',
+        w?.pressure   !== null ? pressMap[w.pressureTrend] ?? '' : '',
         `Månfas: ${moon.emoji} ${moon.name}`,
         sun?.isGoldenHour ? 'Just nu: gryning/skymning – fisken är extra aktiv' : '',
         sun ? `Gryning ${sun.sunrise.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}, skymning ${sun.sunset.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}` : '',
@@ -1335,9 +1361,10 @@ function initDepthMap(lakeId, fish, weatherRef) {
       const fmtTime = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
 
       const conditions = [
-        w?.temp     != null ? `Lufttemp: ${w.temp}°C`                            : '',
-        w?.wind     != null ? `Vind: ${w.wind} m/s`                              : '',
-        w?.pressure != null ? `Lufttryck: ${w.pressure} hPa, ${pressMap[w.pressureTrend] ?? ''}` : '',
+        w?.temp       != null ? `Lufttemp: ${w.temp}°C`                            : '',
+        w?.wind       != null ? `Vind: ${w.wind} m/s`                              : '',
+        w?.cloudcover != null ? `Molnighet: ${w.cloudcover}% (${w.cloudcover > 70 ? 'mulet' : w.cloudcover > 30 ? 'halvmulet' : 'klart'})` : '',
+        w?.pressure   != null ? `Lufttryck: ${w.pressure} hPa, ${pressMap[w.pressureTrend] ?? ''}` : '',
         `Månfas: ${moon.emoji} ${moon.name} (fiskepoäng: ${moon.score}/10)`,
         sun ? `Gryning: ${fmtTime(sun.sunrise)}, Skymning: ${fmtTime(sun.sunset)}` : '',
         sun?.isGoldenHour ? 'Just nu är det gryning/skymning – fisken är extra aktiv' : '',
