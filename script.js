@@ -621,11 +621,7 @@ function initHomePage() {
     fishGrid.querySelectorAll('.home-fish-card').forEach(card =>
       card.addEventListener('click', () => {
         const fish = allFish.find(f => f.id === card.dataset.fid);
-        if (!fish) return;
-        const same = selectedFish?.id === fish.id;
-        selectedFish = same ? null : fish;
-        renderFishGrid();
-        showFishPanel(selectedFish, selectedLake);
+        if (fish) openFishOverlay(fish, selectedLake);
       }));
   }
 
@@ -763,6 +759,103 @@ function initHomePage() {
   });
 }
 
+// ── Fiskvals-overlay (global, används från wizard och lake.html) ──
+function fmtW(g) {
+  return g >= 1000 ? (g/1000).toFixed(g % 1000 === 0 ? 0 : 1) + ' kg' : g + ' g';
+}
+
+function openFishOverlay(f, lake) {
+  const overlay = document.getElementById('fish-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'block';
+  overlay.scrollTop     = 0;
+  document.body.style.overflow = 'hidden';
+  if (window.lucide) lucide.createIcons();
+
+  document.getElementById('fo-emoji').textContent = FISH_EMOJI[f.id] ?? '🐟';
+  document.getElementById('fo-name').textContent  = f.name;
+  document.getElementById('fo-tag').textContent   = f.tag ?? 'Vanlig';
+
+  const fd = FISH_DATA[f.id] ?? {};
+  document.getElementById('fo-info-rows').innerHTML = `
+    <div class="fic-row"><span>📅 Bästa säsong</span><span>${fd.season ?? '—'}</span></div>
+    <div class="fic-row"><span>⏰ Aktivast</span><span>${fd.time ?? '—'}</span></div>
+    <div class="fic-row" id="fo-weather-row">
+      <span>🌤️ Väder nu</span><span class="text-muted" style="font-size:.78rem">Hämtar…</span>
+    </div>`;
+
+  if (lake?.lat && lake?.lng) {
+    fetchWeather(lake.lat, lake.lng).then(w => {
+      const a   = assessWeather(f.id, w, lake.lat, lake.lng);
+      const row = document.getElementById('fo-weather-row');
+      if (!row || !a) return;
+      row.innerHTML = `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`;
+      let extra = `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`;
+      if (a.pressureTxt) extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
+      extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
+      if (a.sunTimes) {
+        const fmt = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+        extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
+        if (a.sunTimes.isGoldenHour) extra += `<div class="fic-row"><span></span><span style="color:var(--accent);font-weight:700;font-size:.8rem">⚡ Aktivt fisketillfälle!</span></div>`;
+      }
+      row.insertAdjacentHTML('afterend', extra);
+    });
+  }
+
+  // Vattenklarhet
+  let selectedClarity = null;
+  document.querySelectorAll('.fo-clarity-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    btn.onclick = () => {
+      document.querySelectorAll('.fo-clarity-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedClarity = btn.dataset.clarity;
+      const tip = document.getElementById('fo-clarity-tip');
+      if (tip) tip.textContent = CLARITY_LABELS[selectedClarity]?.tip ?? '';
+    };
+  });
+
+  // Viktslider
+  const wg     = FISH_WEIGHT_GUIDE[f.id] ?? { min: 200, max: 1000, sliderMax: 3000 };
+  const slider = document.getElementById('fo-weight-slider');
+  slider.min   = 0;
+  slider.max   = wg.sliderMax;
+  slider.step  = Math.max(1, Math.round(wg.sliderMax / 200));
+  slider.value = Math.round((wg.min + wg.max) / 2);
+  document.getElementById('fo-weight-max').textContent = fmtW(wg.sliderMax);
+  document.getElementById('fo-rec-label').textContent  = `Rekommenderat: ${fmtW(wg.min)}–${fmtW(wg.max)}`;
+
+  function updateSlider() {
+    const val    = parseInt(slider.value);
+    const minPct = (wg.min / wg.sliderMax) * 100;
+    const maxPct = (wg.max / wg.sliderMax) * 100;
+    slider.style.background = `linear-gradient(to right,
+      rgba(255,255,255,.15) 0%, rgba(255,255,255,.15) ${minPct}%,
+      var(--accent) ${minPct}%, var(--accent) ${maxPct}%,
+      rgba(255,255,255,.15) ${maxPct}%, rgba(255,255,255,.15) 100%)`;
+    document.getElementById('fo-weight-value').textContent = fmtW(val);
+  }
+  slider.oninput = updateSlider;
+  updateSlider();
+
+  // Starta fiske
+  document.getElementById('fo-start-btn').onclick = () => {
+    sessionStorage.setItem('selectedFish',  JSON.stringify(f));
+    sessionStorage.setItem('selectedLake',  JSON.stringify(lake));
+    sessionStorage.setItem('waterClarity',  selectedClarity ?? '');
+    sessionStorage.setItem('targetWeight',  slider.value);
+    document.body.style.overflow = '';
+    location.href = `session.html?lakeId=${lake?.id ?? ''}&fishId=${f.id}`;
+  };
+
+  // Stäng
+  const closeBtn = document.getElementById('fish-overlay-close');
+  if (closeBtn) closeBtn.onclick = () => {
+    overlay.style.display        = 'none';
+    document.body.style.overflow = '';
+  };
+}
+
 // ── Sjösida ───────────────────────────────────────────────────────
 async function initLakePage() {
   const params = new URLSearchParams(location.search);
@@ -815,7 +908,7 @@ async function initLakePage() {
     fishGrid.querySelectorAll('.fish-card').forEach(card =>
       card.addEventListener('click', () => {
         const f = fish.find(x => x.id === card.dataset.id);
-        if (f) openFishOverlay(f);
+        if (f) openFishOverlay(f, lake);
       }));
   }
   renderFish();
@@ -874,95 +967,6 @@ async function initLakePage() {
       loadNotes();
     });
   }
-
-  function fmtW(g) { return g >= 1000 ? (g/1000).toFixed(g % 1000 === 0 ? 0 : 1) + ' kg' : g + ' g'; }
-
-  function openFishOverlay(f) {
-    const overlay = document.getElementById('fish-overlay');
-    overlay.style.display = 'block';
-    overlay.scrollTop = 0;
-    document.body.style.overflow = 'hidden';
-    if (window.lucide) lucide.createIcons();
-
-    document.getElementById('fo-emoji').textContent = FISH_EMOJI[f.id] ?? '🐟';
-    document.getElementById('fo-name').textContent  = f.name;
-    document.getElementById('fo-tag').textContent   = f.tag ?? 'Vanlig';
-
-    const fd = FISH_DATA[f.id] ?? {};
-    document.getElementById('fo-info-rows').innerHTML = `
-      <div class="fic-row"><span>📅 Bästa säsong</span><span>${fd.season ?? '—'}</span></div>
-      <div class="fic-row"><span>⏰ Aktivast</span><span>${fd.time ?? '—'}</span></div>
-      <div class="fic-row" id="fo-weather-row">
-        <span>🌤️ Väder nu</span><span class="text-muted" style="font-size:.78rem">Hämtar…</span>
-      </div>`;
-
-    fetchWeather(lake.lat, lake.lng).then(w => {
-      const a = assessWeather(f.id, w, lake.lat, lake.lng);
-      const row = document.getElementById('fo-weather-row');
-      if (!row || !a) return;
-      row.innerHTML = `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`;
-      let extra = `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`;
-      if (a.pressureTxt) extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
-      extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
-      if (a.sunTimes) {
-        const fmt = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
-        extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
-        if (a.sunTimes.isGoldenHour) extra += `<div class="fic-row"><span></span><span style="color:var(--accent);font-weight:700;font-size:.8rem">⚡ Aktivt fisketillfälle!</span></div>`;
-      }
-      row.insertAdjacentHTML('afterend', extra);
-    });
-
-    // Vattenklarhet
-    let selectedClarity = null;
-    document.querySelectorAll('.fo-clarity-btn').forEach(btn => {
-      btn.classList.remove('selected');
-      btn.onclick = () => {
-        document.querySelectorAll('.fo-clarity-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedClarity = btn.dataset.clarity;
-        document.getElementById('fo-clarity-tip').textContent =
-          CLARITY_LABELS[selectedClarity]?.tip ?? '';
-      };
-    });
-
-    // Viktslider
-    const wg  = FISH_WEIGHT_GUIDE[f.id] ?? { min: 200, max: 1000, sliderMax: 3000 };
-    const slider = document.getElementById('fo-weight-slider');
-    slider.min   = 0;
-    slider.max   = wg.sliderMax;
-    slider.step  = Math.max(1, Math.round(wg.sliderMax / 200));
-    slider.value = Math.round((wg.min + wg.max) / 2);
-
-    document.getElementById('fo-weight-max').textContent  = fmtW(wg.sliderMax);
-    document.getElementById('fo-rec-label').textContent   = `Rekommenderat: ${fmtW(wg.min)}–${fmtW(wg.max)}`;
-
-    function updateSlider() {
-      const val    = parseInt(slider.value);
-      const minPct = (wg.min / wg.sliderMax) * 100;
-      const maxPct = (wg.max / wg.sliderMax) * 100;
-      slider.style.background = `linear-gradient(to right,
-        rgba(255,255,255,.15) 0%, rgba(255,255,255,.15) ${minPct}%,
-        var(--accent) ${minPct}%, var(--accent) ${maxPct}%,
-        rgba(255,255,255,.15) ${maxPct}%, rgba(255,255,255,.15) 100%)`;
-      document.getElementById('fo-weight-value').textContent = fmtW(val);
-    }
-    slider.oninput = updateSlider;
-    updateSlider();
-
-    // Starta fiske
-    document.getElementById('fo-start-btn').onclick = () => {
-      sessionStorage.setItem('selectedFish',   JSON.stringify(f));
-      sessionStorage.setItem('waterClarity',   selectedClarity ?? '');
-      sessionStorage.setItem('targetWeight',   slider.value);
-      document.body.style.overflow = '';
-      location.href = `session.html?lakeId=${lake.id}&fishId=${f.id}`;
-    };
-  }
-
-  document.getElementById('fish-overlay-close')?.addEventListener('click', () => {
-    document.getElementById('fish-overlay').style.display = 'none';
-    document.body.style.overflow = '';
-  });
 
   async function showLakeFishPanel(f, lake) {
     if (!f) { selWrap.style.display = 'none'; return; }
