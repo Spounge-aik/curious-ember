@@ -794,8 +794,14 @@ function openFishOverlay(f, lake) {
       if (a.pressureTxt) extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
       extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
       if (a.sunTimes) {
-        const fmt = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
-        extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
+        const fmt  = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+        const win  = 60 * 60 * 1000;
+        const riseFrom = fmt(new Date(a.sunTimes.sunrise.getTime() - win));
+        const riseTo   = fmt(new Date(a.sunTimes.sunrise.getTime() + win));
+        const setFrom  = fmt(new Date(a.sunTimes.sunset.getTime()  - win));
+        const setTo    = fmt(new Date(a.sunTimes.sunset.getTime()  + win));
+        extra += `<div class="fic-row"><span>🌅 Gryning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} <span class="text-muted">(${riseFrom}–${riseTo})</span></span></div>`;
+        extra += `<div class="fic-row"><span>🌇 Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunset)} <span class="text-muted">(${setFrom}–${setTo})</span></span></div>`;
         if (a.sunTimes.isGoldenHour) extra += `<div class="fic-row"><span></span><span style="color:var(--accent);font-weight:700;font-size:.8rem">⚡ Aktivt fisketillfälle!</span></div>`;
       }
       row.insertAdjacentHTML('afterend', extra);
@@ -1030,7 +1036,13 @@ async function initLakePage() {
         : a.sunTimes.minToNext !== null
           ? `${a.sunTimes.nextLabel} om ${a.sunTimes.minToNext < 60 ? a.sunTimes.minToNext + ' min' : Math.round(a.sunTimes.minToNext/60) + ' h'}`
           : a.sunTimes.nextLabel;
-      extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
+      const win2    = 60 * 60 * 1000;
+      const riseFrom2 = fmt(new Date(a.sunTimes.sunrise.getTime() - win2));
+      const riseTo2   = fmt(new Date(a.sunTimes.sunrise.getTime() + win2));
+      const setFrom2  = fmt(new Date(a.sunTimes.sunset.getTime()  - win2));
+      const setTo2    = fmt(new Date(a.sunTimes.sunset.getTime()  + win2));
+      extra += `<div class="fic-row"><span>🌅 Gryning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} <span class="text-muted">(${riseFrom2}–${riseTo2})</span></span></div>`;
+      extra += `<div class="fic-row"><span>🌇 Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunset)} <span class="text-muted">(${setFrom2}–${setTo2})</span></span></div>`;
       extra += `<div class="fic-row"><span></span><span style="font-size:.78rem">${goldenTxt}</span></div>`;
     }
     row.insertAdjacentHTML('afterend', extra);
