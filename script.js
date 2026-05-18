@@ -2608,11 +2608,20 @@ async function initCompetitionPage() {
     daysEl.style.color = 'var(--text-3)';
   }
 
-  // Hämta anmälningar + kolla om inloggad är anmäld
-  const { data: regs } = await sb.from('competition_registrations')
-    .select('*, profiles(username)').eq('competition_id', comp.id);
-  const regCount  = regs?.length ?? 0;
-  const isReg     = (regs ?? []).some(r => r.user_id === user.id);
+  // Hämta anmälningar (utan join – profiles hämtas separat)
+  const { data: regsRaw } = await sb.from('competition_registrations')
+    .select('user_id, registered_at').eq('competition_id', comp.id);
+  const regList   = regsRaw ?? [];
+  const regIds    = regList.map(r => r.user_id);
+  const regCount  = regList.length;
+  const isReg     = regList.some(r => r.user_id === user.id);
+
+  // Hämta profiler för anmälda
+  let profileMap = {};
+  if (regIds.length) {
+    const { data: profs } = await sb.from('profiles').select('id, username').in('id', regIds);
+    (profs ?? []).forEach(p => { profileMap[p.id] = p.username; });
+  }
 
   // Uppdatera meta med antal anmälda
   document.getElementById('comp-meta').textContent =
@@ -2633,12 +2642,18 @@ async function initCompetitionPage() {
       if (!error) {
         btnReg.style.display = 'none';
         badgeReg.style.display = 'block';
-        // Lägg till aktuell användares profil i regs för leaderboard
-        const { data: myProfile } = await sb.from('profiles').select('username').eq('id', user.id).single();
-        regs.push({ user_id: user.id, profiles: myProfile });
-        renderAllLeaderboards(comp, regs, catches);
+        // Lägg till i lokal lista och uppdatera leaderboard
+        regList.push({ user_id: user.id });
+        const { data: myProfile } = await sb.from('profiles').select('id, username').eq('id', user.id).single();
+        if (myProfile) profileMap[myProfile.id] = myProfile.username;
+        renderAllLeaderboards();
       } else {
-        btnReg.disabled = false; btnReg.textContent = 'Anmäl mig till tävlingen';
+        btnReg.disabled = false;
+        btnReg.textContent = 'Anmäl mig till tävlingen';
+        btnReg.insertAdjacentHTML('afterend',
+          `<p class="text-xs" style="color:var(--error);text-align:center;margin-top:6px">
+            Något gick fel – försök igen (${error.message})
+          </p>`);
       }
     });
   }
@@ -2658,8 +2673,7 @@ async function initCompetitionPage() {
     });
   });
 
-  // Hämta alla catches som matchar tävlingen
-  const regIds = (regs ?? []).map(r => r.user_id);
+  // Hämta catches för anmälda
   let catches = [];
   if (regIds.length) {
     const { data: c } = await sb.from('catches')
@@ -2671,21 +2685,23 @@ async function initCompetitionPage() {
     catches = c ?? [];
   }
 
-  renderAllLeaderboards(comp, regs ?? [], catches);
+  renderAllLeaderboards();
   if (window.lucide) lucide.createIcons();
 
-  function renderAllLeaderboards(comp, regs, catches) {
+  function renderAllLeaderboards() {
     const medals = ['🥇','🥈','🥉'];
 
-    function renderRankList(items, unit) {
+    function renderRankList(items) {
       if (!items.length) return `<p class="text-sm text-muted" style="padding:20px 0;text-align:center">Inga fångster registrerade ännu</p>`;
       return items.map((item, i) => {
-        const medal = i < 3 ? medals[i] : `<span style="font-size:.9rem;font-weight:700;color:var(--text-3);min-width:24px;display:inline-block;text-align:center">${i+1}</span>`;
+        const medal = i < 3
+          ? `<span style="font-size:1.4rem;min-width:28px;text-align:center">${medals[i]}</span>`
+          : `<span style="font-size:.9rem;font-weight:700;color:var(--text-3);min-width:28px;display:inline-block;text-align:center">${i+1}</span>`;
         return `
           <div style="display:flex;align-items:center;gap:12px;background:var(--surface);
                       border:1px solid var(--border-soft);border-radius:var(--radius);
                       padding:12px 14px;margin-bottom:8px">
-            <span style="font-size:${i<3?'1.4':'1'}rem;min-width:28px;text-align:center">${medal}</span>
+            ${medal}
             ${avatarHtml(item.username, 32)}
             <a href="profile.html?id=${item.uid}" style="flex:1;font-weight:700;font-size:.9rem;
                color:var(--text);text-decoration:none">@${item.username}</a>
@@ -2695,36 +2711,41 @@ async function initCompetitionPage() {
     }
 
     // Störst – max weight_g
-    const storst = regs.map(r => {
+    const storst = regList.map(r => {
       const best = catches.filter(c => c.user_id === r.user_id)
         .sort((a,b) => (b.weight_g??0) - (a.weight_g??0))[0];
       return best?.weight_g
-        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: best.weight_g, label: best.weight_g.toLocaleString('sv-SE')+' g' }
+        ? { username: profileMap[r.user_id] ?? r.user_id.slice(0,6), uid: r.user_id,
+            value: best.weight_g, label: best.weight_g.toLocaleString('sv-SE')+' g' }
         : null;
     }).filter(Boolean).sort((a,b) => b.value - a.value);
 
     // Flest – antal catches med length_cm >= min_length_cm
-    const flest = regs.map(r => {
+    const flest = regList.map(r => {
       const count = catches.filter(c => c.user_id === r.user_id && (c.length_cm ?? 0) >= comp.min_length_cm).length;
       return count > 0
-        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: count, label: count+' st' }
+        ? { username: profileMap[r.user_id] ?? r.user_id.slice(0,6), uid: r.user_id,
+            value: count, label: count+' st' }
         : null;
     }).filter(Boolean).sort((a,b) => b.value - a.value);
 
     // Längst – max length_cm
-    const langst = regs.map(r => {
+    const langst = regList.map(r => {
       const best = catches.filter(c => c.user_id === r.user_id)
         .sort((a,b) => (b.length_cm??0) - (a.length_cm??0))[0];
       return best?.length_cm
-        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: best.length_cm, label: best.length_cm+' cm' }
+        ? { username: profileMap[r.user_id] ?? r.user_id.slice(0,6), uid: r.user_id,
+            value: best.length_cm, label: best.length_cm+' cm' }
         : null;
     }).filter(Boolean).sort((a,b) => b.value - a.value);
 
-    const minStr = comp.min_length_cm > 0 ? `<p class="text-xs text-muted" style="margin-bottom:10px">Räknas: abborre ≥ ${comp.min_length_cm} cm</p>` : '';
+    const minStr = comp.min_length_cm > 0
+      ? `<p class="text-xs text-muted" style="margin-bottom:10px">Räknas: ${comp.species.toLowerCase()} ≥ ${comp.min_length_cm} cm</p>`
+      : '';
 
-    document.getElementById('panel-storst').innerHTML = renderRankList(storst, 'g');
-    document.getElementById('panel-flest').innerHTML  = minStr + renderRankList(flest, 'st');
-    document.getElementById('panel-langst').innerHTML = renderRankList(langst, 'cm');
+    document.getElementById('panel-storst').innerHTML = renderRankList(storst);
+    document.getElementById('panel-flest').innerHTML  = minStr + renderRankList(flest);
+    document.getElementById('panel-langst').innerHTML = renderRankList(langst);
   }
 }
 
