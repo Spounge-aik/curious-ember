@@ -41,11 +41,12 @@ module.exports = async function handler(req, res) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: 'API-nyckel saknas' });
 
-  const body = req.body || {};
-  const lakeName = body.lakeName;
-  const fishName = body.fishName;
-  const rods     = body.rods  || [];
-  const lures    = body.lures || [];
+  const body       = req.body || {};
+  const lakeName   = body.lakeName;
+  const fishName   = body.fishName;
+  const rods       = body.rods       || [];
+  const lures      = body.lures      || [];
+  const conditions = body.conditions || '';
 
   if (!rods.length && !lures.length) {
     return res.status(200).json({
@@ -65,9 +66,10 @@ module.exports = async function handler(req, res) {
           role: 'user',
           content:
             'Fiska ' + fishName + ' i ' + lakeName + '. Säsong: ' + season() + '.\n' +
+            (conditions ? 'Aktuella förhållanden: ' + conditions + '.\n' : '') +
             'Spön: ' + JSON.stringify(rods.map((r) => ({ id: r.id, name: r.name, tags: r.tags }))) + '\n' +
             'Beten: ' + JSON.stringify(lures.map((l) => ({ id: l.id, name: l.name, type: l.type, color: l.color, size: l.size, tags: l.tags }))) + '\n' +
-            'Välj max 3 spön och max 5 beten. Svar: {"rods":[{"id":"","name":"","reason":"","rank":1}],"lures":[{"id":"","name":"","reason":"","rank":1}],"general_tip":""}',
+            'Anpassa rekommendationerna efter förhållandena. Välj max 3 spön och max 5 beten. Svar: {"rods":[{"id":"","name":"","reason":"","rank":1}],"lures":[{"id":"","name":"","reason":"","rank":1}],"general_tip":""}',
         },
       ],
     });

@@ -80,19 +80,110 @@ async function fetchWeather(lat, lng) {
   const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
   if (_weatherCache[key]) return _weatherCache[key];
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&current=temperature_2m,windspeed_10m,precipitation,weathercode&wind_speed_unit=ms&timezone=Europe%2FStockholm`;
-    const r   = await fetch(url);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}`
+      + `&current=temperature_2m,windspeed_10m,winddirection_10m,precipitation,weathercode,surface_pressure`
+      + `&hourly=surface_pressure&past_hours=3&forecast_hours=0`
+      + `&wind_speed_unit=ms&timezone=Europe%2FStockholm`;
+    const r = await fetch(url);
     if (!r.ok) throw new Error('Open-Meteo API fel');
     const d   = await r.json();
-    const cur  = d.current ?? {};
-    const get  = name => cur[name] ?? null;
-    const w = { temp: get('temperature_2m'), wind: get('windspeed_10m'), precip: get('precipitation'), code: get('weathercode') };
+    const cur = d.current ?? {};
+    const get = name => cur[name] ?? null;
+
+    // Lufttrycksförändring senaste 3 timmar
+    const pressureHourly = d.hourly?.surface_pressure ?? [];
+    const pressureNow    = get('surface_pressure');
+    const pressure3hAgo  = pressureHourly.length >= 3 ? pressureHourly[0] : null;
+    const pressureDiff   = (pressureNow !== null && pressure3hAgo !== null)
+      ? pressureNow - pressure3hAgo : null;
+    const pressureTrend  = pressureDiff === null ? 'unknown'
+      : pressureDiff > 2  ? 'rising'
+      : pressureDiff < -2 ? 'falling'
+      : 'stable';
+
+    const w = {
+      temp:          get('temperature_2m'),
+      wind:          get('windspeed_10m'),
+      windDir:       get('winddirection_10m'),
+      precip:        get('precipitation'),
+      code:          get('weathercode'),
+      pressure:      pressureNow ? Math.round(pressureNow) : null,
+      pressureDiff:  pressureDiff !== null ? Math.round(pressureDiff * 10) / 10 : null,
+      pressureTrend,
+    };
     _weatherCache[key] = w;
     return w;
   } catch { return null; }
 }
 
-function assessWeather(fishId, w) {
+// ── Månfas ────────────────────────────────────────────────────────
+function getMoonPhase(date = new Date()) {
+  const knownNewMoon = new Date('2000-01-06T18:14:00Z');
+  const lunarCycle   = 29.530588853;
+  const elapsed      = (date - knownNewMoon) / 86400000;
+  const phase        = ((elapsed % lunarCycle) + lunarCycle) % lunarCycle;
+
+  let name, emoji, score;
+  if (phase < 1.5 || phase > 28)      { name = 'Nymåne';       emoji = '🌑'; score = 10; }
+  else if (phase < 7)                  { name = 'Tilltagande';  emoji = '🌒'; score = 4;  }
+  else if (phase < 8.5)                { name = 'Halvmåne';     emoji = '🌓'; score = 7;  }
+  else if (phase < 13.5)               { name = 'Puckelformad'; emoji = '🌔'; score = 4;  }
+  else if (phase < 15.5)               { name = 'Fullmåne';     emoji = '🌕'; score = 10; }
+  else if (phase < 21)                 { name = 'Avtagande';    emoji = '🌖'; score = 4;  }
+  else if (phase < 22.5)               { name = 'Halvmåne';     emoji = '🌗'; score = 7;  }
+  else                                  { name = 'Avtagande';    emoji = '🌘'; score = 4;  }
+
+  return { phase, name, emoji, score };
+}
+
+// ── Solupp & solnedgång ───────────────────────────────────────────
+function getSunTimes(lat, lng, date = new Date()) {
+  const rad  = Math.PI / 180;
+  const deg  = x => x / rad;
+  const norm = x => ((x % 360) + 360) % 360;
+
+  const dayOfYear = Math.round((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+  const lngHour   = lng / 15;
+
+  function calc(rising) {
+    const t  = dayOfYear + ((rising ? 6 : 18) - lngHour) / 24;
+    const M  = norm(0.9856 * t - 3.289);
+    const L  = norm(M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634);
+    let   RA = norm(deg(Math.atan(0.91764 * Math.tan(L * rad))));
+    RA += (Math.floor(L / 90) - Math.floor(RA / 90)) * 90;
+    RA /= 15;
+    const sinDec = 0.39782 * Math.sin(L * rad);
+    const cosDec = Math.cos(Math.asin(sinDec));
+    const cosH   = (Math.cos(90.833 * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+    if (Math.abs(cosH) > 1) return null; // midnattsol/polarnatt
+    const H    = rising ? (360 - deg(Math.acos(cosH))) / 15 : deg(Math.acos(cosH)) / 15;
+    const utc  = ((H + RA - 0.06571 * t - 6.622) - lngHour + 24) % 24;
+    const local = new Date(date);
+    local.setUTCHours(0, 0, 0, 0);
+    return new Date(local.getTime() + utc * 3600000);
+  }
+
+  const sunrise = calc(true);
+  const sunset  = calc(false);
+  if (!sunrise || !sunset) return null;
+
+  const now          = date.getTime();
+  const goldenWindow = 60 * 60 * 1000; // 60 min
+  const isGoldenHour = Math.abs(now - sunrise.getTime()) < goldenWindow
+                    || Math.abs(now - sunset.getTime())  < goldenWindow;
+
+  // Nästa event
+  let nextEvent, nextLabel;
+  if (now < sunrise.getTime())      { nextEvent = sunrise; nextLabel = 'Gryning'; }
+  else if (now < sunset.getTime())  { nextEvent = sunset;  nextLabel = 'Skymning'; }
+  else                              { nextEvent = null;    nextLabel = 'Gryning imorgon'; }
+
+  const minToNext = nextEvent ? Math.round((nextEvent - now) / 60000) : null;
+
+  return { sunrise, sunset, isGoldenHour, nextLabel, minToNext };
+}
+
+function assessWeather(fishId, w, lat, lng) {
   if (!w) return null;
   const fd = FISH_DATA[fishId];
   if (!fd) return null;
@@ -120,17 +211,36 @@ function assessWeather(fishId, w) {
     else if (w.precip < 2)    score += 4;
   }
 
+  // Lufttrycksförändring (−15 – +20 p)
+  if (w.pressureTrend === 'rising')       score += 20;
+  else if (w.pressureTrend === 'falling') score = Math.max(0, score - 15);
+
+  // Månfas (0–10 p)
+  const moon = getMoonPhase();
+  score += moon.score;
+
+  // Gryning / skymning (0–15 p)
+  let sunTimes = null;
+  if (lat != null && lng != null) {
+    sunTimes = getSunTimes(lat, lng);
+    if (sunTimes?.isGoldenHour) score += 15;
+  }
+
+  // Max möjligt: 40+30+20+20+10+15 = 135
   let rating, color;
-  if      (score >= 72) { rating = '⭐⭐⭐ Utmärkt';    color = 'var(--success)'; }
-  else if (score >= 50) { rating = '⭐⭐ Bra';          color = 'var(--accent)'; }
-  else if (score >= 28) { rating = '⭐ Måttlig';        color = '#f59e0b'; }
-  else                  { rating = '⚠️ Utmanande';      color = 'var(--error)'; }
+  if      (score >= 100) { rating = '⭐⭐⭐ Utmärkt';  color = 'var(--success)'; }
+  else if (score >= 68)  { rating = '⭐⭐ Bra';        color = 'var(--accent)'; }
+  else if (score >= 38)  { rating = '⭐ Måttlig';      color = '#f59e0b'; }
+  else                   { rating = '⚠️ Utmanande';    color = 'var(--error)'; }
 
-  const tempTxt = w.temp !== null ? `${w.temp}°C` : '';
-  const windTxt = w.wind !== null ? `${w.wind} m/s` : '';
-  const details = [tempTxt, windTxt].filter(Boolean).join(' · ');
+  const tempTxt     = w.temp     !== null ? `${w.temp}°C` : '';
+  const windTxt     = w.wind     !== null ? `${w.wind} m/s` : '';
+  const pressArr    = { rising: '↗ Stigande', stable: '→ Stabilt', falling: '↘ Fallande', unknown: '' };
+  const pressureTxt = w.pressure !== null ? `${w.pressure} hPa ${pressArr[w.pressureTrend] ?? ''}` : '';
 
-  return { rating, color, details };
+  return { rating, color, score, moon, sunTimes,
+           details: [tempTxt, windTxt].filter(Boolean).join(' · '),
+           pressureTxt };
 }
 
 async function fetchFishForLake(lat, lng, lake = null) {
@@ -779,14 +889,27 @@ async function initLakePage() {
     const w   = await fetchWeather(lake.lat, lake.lng);
     const row = document.getElementById('fic-weather-row');
     if (!row) return;
-    const a = assessWeather(f.id, w);
-    row.innerHTML = a
-      ? `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`
-      : `<span>🌤️ Väder nu</span><span class="text-muted">Ej tillgängligt</span>`;
-    if (a?.details) {
-      row.insertAdjacentHTML('afterend',
-        `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`);
+    const a = assessWeather(f.id, w, lake.lat, lake.lng);
+    if (!a) {
+      row.innerHTML = `<span>🌤️ Väder nu</span><span class="text-muted">Ej tillgängligt</span>`;
+      return;
     }
+    row.innerHTML = `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`;
+    let extra = `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`;
+    if (a.pressureTxt)
+      extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
+    extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
+    if (a.sunTimes) {
+      const fmt = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+      const goldenTxt = a.sunTimes.isGoldenHour
+        ? `<span style="color:var(--accent);font-weight:700">⚡ Aktivt fisketillfälle!</span>`
+        : a.sunTimes.minToNext !== null
+          ? `${a.sunTimes.nextLabel} om ${a.sunTimes.minToNext < 60 ? a.sunTimes.minToNext + ' min' : Math.round(a.sunTimes.minToNext/60) + ' h'}`
+          : a.sunTimes.nextLabel;
+      extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
+      extra += `<div class="fic-row"><span></span><span style="font-size:.78rem">${goldenTxt}</span></div>`;
+    }
+    row.insertAdjacentHTML('afterend', extra);
   }
 }
 
@@ -867,12 +990,27 @@ async function initSessionPage() {
   }
 
   try {
+    // Bygg konditionskontext för AI
+    const w       = await fetchWeather(lake?.lat, lake?.lng).catch(() => null);
+    const moon    = getMoonPhase();
+    const sun     = lake?.lat ? getSunTimes(lake.lat, lake.lng) : null;
+    const pressMap = { rising: 'Stigande lufttryck (↗ bra fiskeförhållanden)', stable: 'Stabilt lufttryck', falling: 'Fallande lufttryck (↘ fisken äter sällan)', unknown: '' };
+    const conditions = [
+      w?.temp     !== null ? `Temp: ${w.temp}°C`             : '',
+      w?.wind     !== null ? `Vind: ${w.wind} m/s`           : '',
+      w?.pressure !== null ? pressMap[w.pressureTrend] ?? '' : '',
+      `Månfas: ${moon.emoji} ${moon.name}`,
+      sun?.isGoldenHour ? 'Just nu: gryning/skymning – fisken är extra aktiv' : '',
+      sun ? `Gryning ${sun.sunrise.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}, skymning ${sun.sunset.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}` : '',
+    ].filter(Boolean).join('. ');
+
     const res = await fetch('/api/recommend', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
         lakeName: lake?.name, fishName: fish?.name,
         rods: rods ?? [], lures: lures ?? [],
+        conditions,
       }),
     });
     if (res.status === 401) { location.href = 'auth.html'; return; }
