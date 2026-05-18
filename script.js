@@ -1230,7 +1230,7 @@ function initDepthMap(lakeId, fish, weatherRef) {
       });
     };
     imgEl.onerror = () => { loading.innerHTML = '<span style="color:var(--error)">Djupkarta saknas för denna sjö</span>'; };
-    imgEl.src     = `/maps/${lakeId}.png`;
+    imgEl.src     = `/api/lake-map?id=${lake.smhiId}`;
   });
 
   // ── Analysera fiskeplatser ────────────────────────────────────────
