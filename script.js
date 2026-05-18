@@ -474,6 +474,7 @@ function initPage() {
   if (page === 'catch.html')       return initCatchPage();
   if (page === 'catches.html')     return initCatchesPage();
   if (page === 'lakes.html')       return initHomePage();
+  if (page === 'forecast.html')    return initForecastPage();
   // index.html = landing page, ingen init behövs
 }
 
@@ -2054,6 +2055,178 @@ async function initCatchesPage() {
     }));
 
   if (window.lucide) lucide.createIcons();
+}
+
+// ── Fiskeprognos ──────────────────────────────────────────────────
+async function initForecastPage() {
+  const WMO_ICON = { 0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️', 45:'🌫️', 48:'🌫️',
+    51:'🌦️', 53:'🌦️', 55:'🌧️', 61:'🌧️', 63:'🌧️', 65:'🌧️',
+    71:'❄️', 73:'❄️', 75:'❄️', 80:'🌦️', 81:'🌧️', 82:'🌧️',
+    95:'⛈️', 96:'⛈️', 99:'⛈️' };
+  const wmoIcon  = c => WMO_ICON[c] ?? WMO_ICON[Object.keys(WMO_ICON).reverse().find(k => +k <= c)] ?? '🌡️';
+  const DAYS_SV  = ['Sön','Mån','Tis','Ons','Tor','Fre','Lör'];
+  const MONTHS_SV = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
+
+  // Populera sjölista
+  const lakeSelect = document.getElementById('fc-lake');
+  SEED_LAKES.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.id; opt.textContent = `${l.name} (${l.county})`;
+    lakeSelect.appendChild(opt);
+  });
+
+  // Försök pre-välja senast valda sjö
+  const stored = JSON.parse(sessionStorage.getItem('selectedLake') || 'null');
+  if (stored) lakeSelect.value = stored.id;
+
+  // Fiskart-chips
+  const chipsEl    = document.getElementById('fc-fish-chips');
+  let   selectedFishId = 'abborre';
+  const fishList   = Object.entries(FISH_INFO).map(([id,i]) => ({id,name:i.name})).filter(f=>f.name)
+                       .sort((a,b)=>a.name.localeCompare(b.name,'sv'));
+
+  chipsEl.innerHTML = fishList.map(f => `
+    <button class="fc-fish-chip tag" data-id="${f.id}"
+            style="cursor:pointer;border:none;font-family:inherit;
+                   background:${f.id===selectedFishId?'var(--accent)':'var(--surface-2)'};
+                   color:${f.id===selectedFishId?'#fff':'var(--text-2)'}">
+      ${FISH_EMOJI[f.id]??'🐟'} ${f.name}
+    </button>`).join('');
+
+  function updateChips() {
+    chipsEl.querySelectorAll('.fc-fish-chip').forEach(b => {
+      const active = b.dataset.id === selectedFishId;
+      b.style.background = active ? 'var(--accent)' : 'var(--surface-2)';
+      b.style.color      = active ? '#fff' : 'var(--text-2)';
+    });
+  }
+  chipsEl.querySelectorAll('.fc-fish-chip').forEach(b =>
+    b.addEventListener('click', () => { selectedFishId = b.dataset.id; updateChips(); loadForecast(); }));
+
+  async function loadForecast() {
+    const lake = SEED_LAKES.find(l => l.id === lakeSelect.value);
+    if (!lake) {
+      document.getElementById('fc-empty').style.display   = 'block';
+      document.getElementById('fc-list').style.display    = 'none';
+      document.getElementById('fc-skeleton').style.display = 'none';
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    document.getElementById('fc-empty').style.display    = 'none';
+    document.getElementById('fc-list').style.display     = 'none';
+    document.getElementById('fc-skeleton').style.display = 'flex';
+
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast`
+        + `?latitude=${lake.lat.toFixed(4)}&longitude=${lake.lng.toFixed(4)}`
+        + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,cloudcover_mean,weathercode`
+        + `&forecast_days=7&timezone=Europe%2FStockholm`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('Nätverksfel');
+      const d = await r.json();
+      const daily = d.daily;
+
+      const fd  = FISH_DATA[selectedFishId] ?? {};
+      const list = document.getElementById('fc-list');
+
+      list.innerHTML = daily.time.map((dateStr, i) => {
+        const date    = new Date(dateStr);
+        const dayName = DAYS_SV[date.getDay()];
+        const dateLabel = `${date.getDate()} ${MONTHS_SV[date.getMonth()]}`;
+        const tMax    = daily.temperature_2m_max[i];
+        const tMin    = daily.temperature_2m_min[i];
+        const tAvg    = (tMax + tMin) / 2;
+        const wind    = daily.windspeed_10m_max[i];
+        const precip  = daily.precipitation_sum[i];
+        const cloud   = daily.cloudcover_mean[i];
+        const code    = daily.weathercode[i];
+        const moon    = getMoonPhase(date);
+
+        // Poängberäkning
+        let score = 0;
+        // Temp
+        if (tAvg !== null && fd.optTemp) {
+          const [lo,hi] = fd.optTemp;
+          if (tAvg>=lo && tAvg<=hi)                                    score += 40;
+          else if (Math.abs(tAvg-lo)<4 || Math.abs(tAvg-hi)<4)        score += 25;
+          else if (Math.abs(tAvg-lo)<8 || Math.abs(tAvg-hi)<8)        score += 10;
+        }
+        // Vind
+        if (wind !== null && fd.goodWind) {
+          const [,wMax] = fd.goodWind;
+          if (wind <= wMax)          score += 30;
+          else if (wind <= wMax+3)   score += 15;
+          else if (wind <= wMax+6)   score += 5;
+        }
+        // Regn
+        if (precip !== null) {
+          if (precip < 1)       score += 20;
+          else if (precip < 5)  score += 10;
+          else if (precip < 15) score += 3;
+        }
+        // Moln (artspecifikt)
+        if (cloud !== null && fd.cloudPref && fd.cloudPref !== 'neutral') {
+          if (fd.cloudPref === 'cloudy' && cloud > 60) score += 10;
+          if (fd.cloudPref === 'cloudy' && cloud < 30) score = Math.max(0, score - 5);
+          if (fd.cloudPref === 'sunny'  && cloud < 30) score += 10;
+          if (fd.cloudPref === 'sunny'  && cloud > 60) score = Math.max(0, score - 5);
+        }
+        // Månfas
+        score += moon.score;
+
+        const maxScore = 40+30+20+10+10;
+        const pct      = Math.min(100, Math.round(score / maxScore * 100));
+        let ratingLabel, ratingColor;
+        if      (pct >= 75) { ratingLabel = 'Utmärkt';   ratingColor = 'var(--success)'; }
+        else if (pct >= 52) { ratingLabel = 'Bra';       ratingColor = 'var(--accent)';  }
+        else if (pct >= 30) { ratingLabel = 'Måttlig';   ratingColor = '#f59e0b';         }
+        else                { ratingLabel = 'Utmanande'; ratingColor = 'var(--error)';    }
+
+        const isToday = i === 0;
+
+        return `
+          <div style="background:var(--surface);border-radius:var(--radius-lg);
+                      border:1px solid ${isToday?'var(--accent)':'var(--border-soft)'};
+                      padding:14px 16px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+              <div style="min-width:52px">
+                <div style="font-weight:700;font-size:.9rem;color:${isToday?'var(--accent)':'var(--text)'}">${isToday?'Idag':dayName}</div>
+                <div style="font-size:.72rem;color:var(--text-3)">${dateLabel}</div>
+              </div>
+              <div style="font-size:28px">${wmoIcon(code)}</div>
+              <div style="flex:1">
+                <div style="font-size:.82rem;font-weight:600">${Math.round(tMin)}° – ${Math.round(tMax)}°C
+                  <span style="color:var(--text-3);font-weight:400"> · 💨 ${Math.round(wind)} m/s</span>
+                  ${precip > 0.5 ? `<span style="color:var(--text-3);font-weight:400"> · 🌧 ${precip.toFixed(1)} mm</span>` : ''}
+                </div>
+                <div style="font-size:.72rem;color:var(--text-3);margin-top:2px">${moon.emoji} ${moon.name}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-weight:700;font-size:.85rem;color:${ratingColor}">${ratingLabel}</div>
+                <div style="font-size:.7rem;color:var(--text-3)">${pct}%</div>
+              </div>
+            </div>
+            <!-- Poängbar -->
+            <div style="height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${ratingColor};border-radius:2px;transition:width .4s"></div>
+            </div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('fc-skeleton').style.display = 'none';
+      document.getElementById('fc-list').style.display     = 'flex';
+    } catch (e) {
+      document.getElementById('fc-skeleton').style.display = 'none';
+      document.getElementById('fc-empty').style.display    = 'block';
+      document.getElementById('fc-empty').innerHTML = `<p style="color:var(--error)">Kunde inte hämta prognos: ${e.message}</p>`;
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  lakeSelect.addEventListener('change', loadForecast);
+  if (lakeSelect.value) loadForecast();
+  else { document.getElementById('fc-empty').style.display = 'block'; if (window.lucide) lucide.createIcons(); }
 }
 
 // ── Knapp i session.html: Navigera till catch.html ────────────────
