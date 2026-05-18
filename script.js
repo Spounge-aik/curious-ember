@@ -475,6 +475,9 @@ function initPage() {
   if (page === 'catches.html')     return initCatchesPage();
   if (page === 'lakes.html')       return initHomePage();
   if (page === 'forecast.html')    return initForecastPage();
+  if (page === 'profile.html')     return initProfilePage();
+  if (page === 'social.html')      return initSocialPage();
+  if (page === 'crew.html')        return initCrewPage();
   // index.html = landing page, ingen init behövs
 }
 
@@ -2055,6 +2058,461 @@ async function initCatchesPage() {
     }));
 
   if (window.lucide) lucide.createIcons();
+}
+
+// ── Hjälp: avatar-initial ─────────────────────────────────────────
+function avatarHtml(username, size = 40) {
+  const initial = (username ?? '?')[0].toUpperCase();
+  const colors  = ['#E8701A','#4A9ECA','#5DBB6A','#CA4A9E','#E8C81A'];
+  const color   = colors[initial.charCodeAt(0) % colors.length];
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${Math.round(size*0.4)}px;
+    color:#fff;flex-shrink:0">${initial}</div>`;
+}
+
+// ── Profil ────────────────────────────────────────────────────────
+async function initProfilePage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const params   = new URLSearchParams(location.search);
+  const targetId = params.get('id') ?? user.id;
+  const isOwn    = targetId === user.id;
+
+  // Hämta profil
+  let { data: profile } = await sb.from('profiles').select('*').eq('id', targetId).single();
+
+  if (!profile && isOwn) {
+    // Visa username-setup
+    document.getElementById('setup-section').style.display = 'block';
+    document.getElementById('btn-save-username').addEventListener('click', async () => {
+      const val = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+      const errEl = document.getElementById('username-error');
+      if (val.length < 2) { errEl.textContent = 'Minst 2 tecken'; errEl.style.display = 'block'; return; }
+      const { error } = await sb.from('profiles').upsert({ id: user.id, username: val });
+      if (error) { errEl.textContent = 'Användarnamnet är taget'; errEl.style.display = 'block'; return; }
+      location.reload();
+    });
+    return;
+  }
+  if (!profile) { document.querySelector('main').innerHTML = '<p class="text-muted" style="padding:40px 16px">Profil hittades inte</p>'; return; }
+
+  // Visa profil-header
+  const headerEl = document.getElementById('profile-header');
+  headerEl.style.display = 'block';
+  document.getElementById('profile-avatar').innerHTML = avatarHtml(profile.username, 64);
+  document.getElementById('profile-avatar').style.background = 'none';
+
+  // Hämta fångster + crews parallellt
+  const [{ data: catches }, { data: memberships }] = await Promise.all([
+    sb.from('catches').select('*').eq('user_id', targetId).order('caught_at', { ascending: false }),
+    sb.from('crew_members').select('crew_id, crews(id,name)').eq('user_id', targetId),
+  ]);
+
+  document.getElementById('profile-username').textContent = profile.username;
+  document.getElementById('profile-stats').textContent    = `${catches?.length ?? 0} fångster registrerade`;
+
+  // Vän-knapp (andras profil)
+  if (!isOwn) {
+    const actEl = document.getElementById('profile-actions');
+    const { data: fs } = await sb.from('friendships').select('*')
+      .or(`and(requester.eq.${user.id},addressee.eq.${targetId}),and(requester.eq.${targetId},addressee.eq.${user.id})`).single();
+    if (!fs) {
+      actEl.innerHTML = `<button id="btn-add-friend" class="btn btn-primary btn-sm">Lägg till vän</button>`;
+      document.getElementById('btn-add-friend').addEventListener('click', async () => {
+        await sb.from('friendships').insert({ requester: user.id, addressee: targetId });
+        actEl.innerHTML = `<span class="tag">Förfrågan skickad</span>`;
+      });
+    } else if (fs.status === 'accepted') {
+      actEl.innerHTML = `<span class="tag" style="color:var(--success)">✓ Vänner</span>`;
+    } else {
+      actEl.innerHTML = `<span class="tag">Förfrågan skickad</span>`;
+    }
+  }
+
+  // Rekord
+  if (catches?.length) {
+    const records = {};
+    catches.forEach(c => {
+      if (!records[c.fish_name]) records[c.fish_name] = { weight: 0, length: 0 };
+      if ((c.weight_g ?? 0)  > records[c.fish_name].weight) records[c.fish_name].weight = c.weight_g;
+      if ((c.length_cm ?? 0) > records[c.fish_name].length) records[c.fish_name].length = c.length_cm;
+    });
+    const recEl = document.getElementById('profile-records');
+    recEl.innerHTML = Object.entries(records).map(([name, r]) => {
+      const emoji = FISH_EMOJI[Object.keys(FISH_DATA).find(k => catches.find(c => c.fish_name === name && c.fish_id === k))] ?? '🐟';
+      return `<div style="flex-shrink:0;background:var(--surface);border:1px solid var(--border-soft);
+               border-radius:var(--radius-lg);padding:10px 14px;min-width:120px;text-align:center">
+        <div style="font-size:24px;margin-bottom:4px">${emoji}</div>
+        <div style="font-weight:700;font-size:.78rem;margin-bottom:4px">${name}</div>
+        ${r.weight ? `<div style="font-size:.7rem;color:var(--accent);font-weight:700">🏆 ${r.weight.toLocaleString('sv-SE')} g</div>` : ''}
+        ${r.length ? `<div style="font-size:.7rem;color:var(--text-3)">${r.length} cm</div>` : ''}
+      </div>`;
+    }).join('');
+    document.getElementById('profile-records-section').style.display = 'block';
+  }
+
+  // Crews
+  if (memberships?.length) {
+    const crewEl = document.getElementById('profile-crews');
+    crewEl.innerHTML = memberships.map(m => `
+      <a href="crew.html?id=${m.crews.id}" style="display:flex;align-items:center;gap:10px;
+         background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+         padding:10px 14px;text-decoration:none;color:var(--text)">
+        <i data-lucide="users" style="width:18px;height:18px;color:var(--accent)"></i>
+        <span class="font-bold" style="font-size:.9rem">${m.crews.name}</span>
+      </a>`).join('');
+    document.getElementById('profile-crews-section').style.display = 'block';
+  }
+
+  // Senaste 5 fångster
+  if (catches?.length) {
+    const cEl = document.getElementById('profile-catches');
+    cEl.innerHTML = catches.slice(0, 5).map(c => {
+      const date = new Date(c.caught_at).toLocaleDateString('sv-SE', { day:'numeric', month:'short' });
+      return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);
+               border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px">
+        ${c.image_url ? `<img src="${c.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px">🐟</div>`}
+        <div style="flex:1">
+          <div class="font-bold" style="font-size:.88rem">${c.fish_name}</div>
+          <div class="text-xs text-muted">${[c.weight_g ? c.weight_g+'g' : null, c.lake_name, date].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('profile-catches-section').style.display = 'block';
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Social feed ───────────────────────────────────────────────────
+async function initSocialPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  // Hämta vänner
+  const { data: friendships } = await sb.from('friendships').select('*')
+    .or(`requester.eq.${user.id},addressee.eq.${user.id}`)
+    .eq('status', 'accepted');
+  const friendIds = (friendships ?? []).map(f => f.requester === user.id ? f.addressee : f.requester);
+
+  // Inkommande förfrågningar
+  const { data: incoming } = await sb.from('friendships').select('*, profiles!requester(username)')
+    .eq('addressee', user.id).eq('status', 'pending');
+  if (incoming?.length) {
+    const reqSec = document.getElementById('requests-section');
+    reqSec.style.display = 'block';
+    document.getElementById('requests-list').innerHTML = incoming.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--surface);
+                  border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px">
+        ${avatarHtml(r.profiles?.username, 36)}
+        <span class="font-bold" style="flex:1;font-size:.9rem">${r.profiles?.username ?? '?'}</span>
+        <button class="btn btn-primary btn-sm accept-btn" data-id="${r.id}" data-uid="${r.requester}">Acceptera</button>
+        <button class="btn btn-surface btn-sm decline-btn" data-id="${r.id}">Avvisa</button>
+      </div>`).join('');
+    reqSec.querySelectorAll('.accept-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        await sb.from('friendships').update({ status: 'accepted' }).eq('id', btn.dataset.id);
+        location.reload();
+      }));
+    reqSec.querySelectorAll('.decline-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        await sb.from('friendships').delete().eq('id', btn.dataset.id);
+        btn.closest('div').remove();
+      }));
+  }
+
+  // Feed
+  const skeleton = document.getElementById('feed-skeleton');
+  const feedList  = document.getElementById('feed-list');
+  const feedEmpty = document.getElementById('feed-empty');
+
+  if (!friendIds.length) {
+    skeleton.style.display = 'none';
+    feedEmpty.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+  } else {
+    const { data: feed } = await sb.from('catches').select('*, profiles!user_id(username)')
+      .in('user_id', friendIds).eq('is_public', true)
+      .order('caught_at', { ascending: false }).limit(50);
+
+    skeleton.style.display = 'none';
+    if (!feed?.length) { feedEmpty.style.display = 'block'; }
+    else {
+      feedList.style.display = 'flex';
+      feedList.innerHTML = feed.map(c => {
+        const date = new Date(c.caught_at).toLocaleDateString('sv-SE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+        const username = c.profiles?.username ?? '?';
+        return `
+          <div style="background:var(--surface);border:1px solid var(--border-soft);
+                      border-radius:var(--radius-lg);overflow:hidden">
+            ${c.image_url ? `<img src="${c.image_url}" style="width:100%;height:180px;object-fit:cover">` : ''}
+            <div style="padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                ${avatarHtml(username, 28)}
+                <a href="profile.html?id=${c.user_id}" style="font-weight:700;font-size:.85rem;color:var(--text);text-decoration:none">${username}</a>
+                <span class="text-xs text-muted" style="margin-left:auto">${date}</span>
+              </div>
+              <div style="font-weight:700">${FISH_EMOJI[c.fish_id]??'🐟'} ${c.fish_name}</div>
+              <div class="text-sm text-muted">${[c.weight_g ? c.weight_g+'g' : null, c.length_cm ? c.length_cm+'cm' : null, c.lake_name].filter(Boolean).join(' · ')}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // Sök användare
+  document.getElementById('btn-friend-search').addEventListener('click', searchUsers);
+  document.getElementById('friend-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchUsers(); });
+
+  async function searchUsers() {
+    const q = document.getElementById('friend-search').value.trim().toLowerCase();
+    if (!q) return;
+    const { data: results } = await sb.from('profiles').select('*').ilike('username', `%${q}%`).neq('id', user.id).limit(5);
+    const resEl = document.getElementById('search-results');
+    if (!results?.length) { resEl.innerHTML = '<p class="text-xs text-muted">Inga användare hittades</p>'; return; }
+    resEl.innerHTML = results.map(p => `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--surface);
+                  border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px">
+        ${avatarHtml(p.username, 32)}
+        <a href="profile.html?id=${p.id}" style="font-weight:700;font-size:.9rem;flex:1;color:var(--text);text-decoration:none">${p.username}</a>
+        <button class="btn btn-surface btn-sm add-friend-btn" data-id="${p.id}">+ Lägg till</button>
+      </div>`).join('');
+    resEl.querySelectorAll('.add-friend-btn').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const { error } = await sb.from('friendships').insert({ requester: user.id, addressee: btn.dataset.id });
+        btn.textContent = error ? 'Redan skickad' : '✓ Skickat';
+        btn.disabled = true;
+      }));
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Crew ──────────────────────────────────────────────────────────
+async function initCrewPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const params = new URLSearchParams(location.search);
+  const crewId = params.get('id');
+
+  if (!crewId) {
+    // Skapa crew eller visa egna crews
+    await showMyCrews(sb, user);
+    return;
+  }
+
+  // Visa specifikt crew
+  const [{ data: crew }, { data: members }] = await Promise.all([
+    sb.from('crews').select('*').eq('id', crewId).single(),
+    sb.from('crew_members').select('user_id, role, profiles(username)').eq('crew_id', crewId),
+  ]);
+
+  if (!crew) { document.querySelector('main').innerHTML = '<p class="text-muted" style="padding:40px 16px">Crew hittades inte</p>'; return; }
+
+  document.getElementById('crew-skeleton').style.display = 'none';
+  document.getElementById('crew-header').style.display   = 'block';
+  document.getElementById('crew-tabs').style.display     = 'flex';
+  document.getElementById('crew-name').textContent  = crew.name;
+  document.getElementById('crew-desc').textContent  = crew.description ?? '';
+  document.getElementById('crew-meta').textContent  = `${members?.length ?? 0} medlemmar`;
+
+  const isAdmin   = crew.created_by === user.id;
+  const isMember  = members?.some(m => m.user_id === user.id);
+  const actEl     = document.getElementById('crew-actions');
+
+  if (isAdmin) {
+    actEl.innerHTML = `<button id="btn-invite" class="btn btn-surface btn-sm"><i data-lucide="user-plus" style="width:14px;height:14px"></i> Bjud in</button>`;
+    document.getElementById('btn-invite').addEventListener('click', () => {
+      document.getElementById('invite-modal').style.display = 'block';
+    });
+    document.getElementById('invite-close').addEventListener('click', () => {
+      document.getElementById('invite-modal').style.display = 'none';
+    });
+    document.getElementById('btn-invite-search').addEventListener('click', () => searchInvite(sb, user, crewId, members));
+  } else if (isMember) {
+    actEl.innerHTML = `<button id="btn-leave" class="btn btn-surface btn-sm">Lämna</button>`;
+    document.getElementById('btn-leave').addEventListener('click', async () => {
+      if (!confirm('Lämna crew?')) return;
+      await sb.from('crew_members').delete().eq('crew_id', crewId).eq('user_id', user.id);
+      location.href = 'social.html';
+    });
+  } else {
+    actEl.innerHTML = `<button id="btn-join" class="btn btn-primary btn-sm">Gå med</button>`;
+    document.getElementById('btn-join').addEventListener('click', async () => {
+      await sb.from('crew_members').insert({ crew_id: crewId, user_id: user.id });
+      location.reload();
+    });
+  }
+
+  // Hämta fångster för alla medlemmar
+  const memberIds = (members ?? []).map(m => m.user_id);
+  const { data: catches } = memberIds.length
+    ? await sb.from('catches').select('*').in('user_id', memberIds)
+    : { data: [] };
+
+  // Flikar
+  document.querySelectorAll('.crew-tab').forEach(tab =>
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.crew-tab').forEach(t => {
+        t.style.background = 'none'; t.style.color = 'var(--text-2)';
+      });
+      tab.style.background = 'var(--accent)'; tab.style.color = '#fff';
+      document.querySelectorAll('.crew-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(`crew-${tab.dataset.tab}`).style.display = 'block';
+    }));
+
+  // Leaderboard – rekord per art
+  const records = {};
+  (catches ?? []).forEach(c => {
+    const key = c.fish_name;
+    if (!records[key] || (c.weight_g ?? 0) > (records[key].weight_g ?? 0)) {
+      records[key] = c;
+    }
+  });
+  const lbEl = document.getElementById('crew-leaderboard');
+  if (!Object.keys(records).length) {
+    lbEl.innerHTML = '<p class="text-muted text-sm" style="padding:12px 0">Inga fångster registrerade ännu</p>';
+  } else {
+    lbEl.innerHTML = Object.entries(records)
+      .sort((a,b) => (b[1].weight_g??0) - (a[1].weight_g??0))
+      .map(([name, c], i) => {
+        const holder = members?.find(m => m.user_id === c.user_id)?.profiles?.username ?? '?';
+        const emoji  = FISH_EMOJI[c.fish_id] ?? '🐟';
+        return `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);
+                  border:1px solid var(--border-soft);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
+          <span style="font-size:1.2rem;font-weight:700;color:var(--text-3);min-width:24px">${i+1}</span>
+          <span style="font-size:24px">${emoji}</span>
+          <div style="flex:1">
+            <div class="font-bold" style="font-size:.88rem">${name}</div>
+            <div class="text-xs text-muted">@${holder}</div>
+          </div>
+          <div style="text-align:right">
+            ${c.weight_g  ? `<div style="font-weight:700;color:var(--accent)">${c.weight_g.toLocaleString('sv-SE')} g</div>` : ''}
+            ${c.length_cm ? `<div class="text-xs text-muted">${c.length_cm} cm</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  // Topplista – flest fångster per person
+  const countByUser = {};
+  (catches ?? []).forEach(c => { countByUser[c.user_id] = (countByUser[c.user_id] ?? 0) + 1; });
+  const tlEl = document.getElementById('crew-toplist');
+  tlEl.innerHTML = Object.entries(countByUser)
+    .sort((a,b) => b[1]-a[1])
+    .map(([uid, count], i) => {
+      const username = members?.find(m => m.user_id === uid)?.profiles?.username ?? '?';
+      const medal    = ['🥇','🥈','🥉'][i] ?? `${i+1}.`;
+      return `<div style="display:flex;align-items:center;gap:12px;background:var(--surface);
+                border:1px solid var(--border-soft);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px">
+        <span style="font-size:1.3rem">${medal}</span>
+        ${avatarHtml(username, 36)}
+        <a href="profile.html?id=${uid}" style="flex:1;font-weight:700;font-size:.9rem;color:var(--text);text-decoration:none">@${username}</a>
+        <span style="font-weight:700;color:var(--accent)">${count} 🐟</span>
+      </div>`;
+    }).join('') || '<p class="text-muted text-sm" style="padding:12px 0">Inga fångster ännu</p>';
+
+  // Medlemmar
+  const mEl = document.getElementById('crew-members');
+  mEl.innerHTML = (members ?? []).map(m => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--surface);
+                border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px">
+      ${avatarHtml(m.profiles?.username, 36)}
+      <a href="profile.html?id=${m.user_id}" style="font-weight:700;font-size:.9rem;flex:1;color:var(--text);text-decoration:none">@${m.profiles?.username ?? '?'}</a>
+      ${m.role === 'admin' ? '<span class="tag" style="color:var(--accent)">Admin</span>' : ''}
+    </div>`).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function showMyCrews(sb, user) {
+  const { data: memberships } = await sb.from('crew_members')
+    .select('crew_id, role, crews(id,name,description)').eq('user_id', user.id);
+
+  document.getElementById('crew-skeleton').style.display = 'none';
+  const main = document.querySelector('main');
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h1 class="text-xl font-bold">Mina Crews</h1>
+      <button id="btn-create-crew" class="btn btn-primary btn-sm">+ Skapa crew</button>
+    </div>
+    <div id="my-crew-list" style="display:flex;flex-direction:column;gap:10px"></div>
+    ${!memberships?.length ? '<p class="text-muted text-sm" style="padding:12px 0">Du är inte med i något crew ännu</p>' : ''}`;
+
+  if (memberships?.length) {
+    document.getElementById('my-crew-list').innerHTML = memberships.map(m => `
+      <a href="crew.html?id=${m.crews.id}" style="display:flex;align-items:center;gap:12px;
+         background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-lg);
+         padding:14px 16px;text-decoration:none;color:var(--text)">
+        <i data-lucide="users" style="width:22px;height:22px;color:var(--accent);flex-shrink:0"></i>
+        <div style="flex:1">
+          <div class="font-bold">${m.crews.name}</div>
+          ${m.crews.description ? `<div class="text-xs text-muted">${m.crews.description}</div>` : ''}
+        </div>
+        <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-3)"></i>
+      </a>`).join('');
+  }
+
+  document.getElementById('btn-create-crew').addEventListener('click', () => {
+    main.innerHTML = `
+      <button onclick="history.back()" class="back-btn mb-5">
+        <i data-lucide="chevron-left" class="icon"></i> Tillbaka
+      </button>
+      <h1 class="text-xl font-bold mb-5">Skapa crew</h1>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label class="section-title" style="display:block;margin-bottom:6px">Crewnamn</label>
+          <input id="crew-name-input" type="text" placeholder="T.ex. Fagersta Fiskare" maxlength="40">
+        </div>
+        <div>
+          <label class="section-title" style="display:block;margin-bottom:6px">Beskrivning (valfritt)</label>
+          <input id="crew-desc-input" type="text" placeholder="Kort beskrivning…" maxlength="100">
+        </div>
+        <button id="btn-do-create-crew" class="btn btn-primary btn-full">Skapa crew</button>
+        <p id="crew-create-err" style="color:var(--error);font-size:.82rem;display:none"></p>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+
+    document.getElementById('btn-do-create-crew').addEventListener('click', async () => {
+      const name = document.getElementById('crew-name-input').value.trim();
+      const desc = document.getElementById('crew-desc-input').value.trim();
+      if (!name) { document.getElementById('crew-create-err').textContent = 'Ange ett crewnamn'; document.getElementById('crew-create-err').style.display = 'block'; return; }
+      const { data: newCrew, error } = await sb.from('crews').insert({ name, description: desc || null, created_by: user.id }).select().single();
+      if (error) { document.getElementById('crew-create-err').textContent = error.message; document.getElementById('crew-create-err').style.display = 'block'; return; }
+      await sb.from('crew_members').insert({ crew_id: newCrew.id, user_id: user.id, role: 'admin' });
+      location.href = `crew.html?id=${newCrew.id}`;
+    });
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function searchInvite(sb, user, crewId, members) {
+  const q = document.getElementById('invite-search').value.trim().toLowerCase();
+  if (!q) return;
+  const existingIds = (members ?? []).map(m => m.user_id);
+  const { data: results } = await sb.from('profiles').select('*').ilike('username', `%${q}%`).neq('id', user.id).limit(5);
+  const resEl = document.getElementById('invite-results');
+  if (!results?.length) { resEl.innerHTML = '<p class="text-xs text-muted">Inga användare hittades</p>'; return; }
+  resEl.innerHTML = results.map(p => {
+    const already = existingIds.includes(p.id);
+    return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface-2);
+                border-radius:var(--radius);padding:10px 12px">
+      ${avatarHtml(p.username, 32)}
+      <span class="font-bold" style="flex:1;font-size:.9rem">${p.username}</span>
+      ${already ? '<span class="tag">Medlem</span>' : `<button class="btn btn-primary btn-sm invite-add-btn" data-id="${p.id}">Bjud in</button>`}
+    </div>`;
+  }).join('');
+  resEl.querySelectorAll('.invite-add-btn').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      await sb.from('crew_members').insert({ crew_id: crewId, user_id: btn.dataset.id });
+      btn.textContent = '✓ Inbjuden'; btn.disabled = true;
+    }));
 }
 
 // ── Fiskeprognos ──────────────────────────────────────────────────

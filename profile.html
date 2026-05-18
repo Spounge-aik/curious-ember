@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Profil</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header" id="app-header"></header>
+<main class="page-content" style="padding:20px 16px 40px">
+
+  <!-- Sätt username (visas bara första gången) -->
+  <div id="setup-section" style="display:none;margin-bottom:24px">
+    <div style="background:var(--surface);border-radius:var(--radius-lg);padding:20px;border:1px solid var(--accent)">
+      <p class="font-bold mb-1">Välj ett användarnamn</p>
+      <p class="text-sm text-muted mb-3">Syns för vänner och i crews</p>
+      <div style="display:flex;gap:8px">
+        <input id="username-input" type="text" placeholder="ditt_namn" maxlength="20"
+               style="flex:1" autocomplete="off" autocapitalize="none">
+        <button id="btn-save-username" class="btn btn-primary">Spara</button>
+      </div>
+      <p id="username-error" class="text-xs" style="color:var(--error);margin-top:6px;display:none"></p>
+    </div>
+  </div>
+
+  <!-- Profil-header -->
+  <div id="profile-header" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div id="profile-avatar"
+           style="width:64px;height:64px;border-radius:50%;background:var(--accent);
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:1.6rem;font-weight:700;color:#fff;flex-shrink:0"></div>
+      <div style="flex:1">
+        <div id="profile-username" style="font-size:1.2rem;font-weight:700"></div>
+        <div id="profile-stats" class="text-sm text-muted"></div>
+      </div>
+      <div id="profile-actions"></div>
+    </div>
+  </div>
+
+  <!-- Personliga rekord -->
+  <div id="profile-records-section" style="display:none;margin-bottom:24px">
+    <p class="section-title mb-3">Personliga rekord</p>
+    <div id="profile-records" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch"></div>
+  </div>
+
+  <!-- Crews -->
+  <div id="profile-crews-section" style="display:none;margin-bottom:24px">
+    <p class="section-title mb-3">Crews</p>
+    <div id="profile-crews" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- Senaste fångster -->
+  <div id="profile-catches-section" style="display:none">
+    <p class="section-title mb-3">Senaste fångster</p>
+    <div id="profile-catches" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+</main>
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>

@@ -23,6 +23,9 @@ export function renderHeader() {
       <button class="icon-btn" id="btn-desktop" title="Växla desktop-läge">
         <i data-lucide="monitor" style="width:16px;height:16px"></i>
       </button>
+      <a href="profile.html" class="icon-btn" title="Min profil">
+        <i data-lucide="user" style="width:16px;height:16px"></i>
+      </a>
       <button class="icon-btn" id="btn-logout" title="Logga ut">
         <i data-lucide="log-out" style="width:16px;height:16px"></i>
       </button>

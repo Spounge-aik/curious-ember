@@ -7,6 +7,7 @@ export function renderNav() {
     { href: 'lakes.html',   icon: 'map',     label: 'Sjöar'      },
     { href: 'history.html', icon: 'fish',    label: 'Mitt Fiske' },
     { href: 'catches.html', icon: 'award',   label: 'Fångster'   },
+    { href: 'social.html',  icon: 'users',   label: 'Social'     },
     { href: 'library.html', icon: 'anchor',  label: 'Utrustning' },
   ];
 

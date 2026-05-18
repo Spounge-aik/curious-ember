@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Crew</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header" id="app-header"></header>
+<main class="page-content" style="padding:20px 16px 40px">
+
+  <!-- Crew-header -->
+  <div id="crew-header" style="display:none;margin-bottom:24px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <h1 id="crew-name" class="text-xl font-bold"></h1>
+        <p id="crew-desc" class="text-sm text-muted mt-1"></p>
+        <p id="crew-meta" class="text-xs text-muted mt-1"></p>
+      </div>
+      <div id="crew-actions" style="flex-shrink:0;display:flex;gap:6px"></div>
+    </div>
+  </div>
+
+  <!-- Flikar -->
+  <div id="crew-tabs" style="display:none;display:flex;gap:4px;margin-bottom:20px;
+       background:var(--surface);border-radius:var(--radius);padding:4px">
+    <button class="crew-tab active" data-tab="leaderboard" style="flex:1;padding:8px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:var(--accent);color:#fff">
+      🏆 Rekord
+    </button>
+    <button class="crew-tab" data-tab="toplist" style="flex:1;padding:8px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:none;color:var(--text-2)">
+      🎣 Topplista
+    </button>
+    <button class="crew-tab" data-tab="members" style="flex:1;padding:8px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:none;color:var(--text-2)">
+      👥 Medlemmar
+    </button>
+  </div>
+
+  <div id="crew-leaderboard" class="crew-panel"></div>
+  <div id="crew-toplist"     class="crew-panel" style="display:none"></div>
+  <div id="crew-members"     class="crew-panel" style="display:none"></div>
+
+  <!-- Skeleton -->
+  <div id="crew-skeleton" style="display:flex;flex-direction:column;gap:10px">
+    <div class="skeleton skeleton-card" style="height:80px"></div>
+    <div class="skeleton skeleton-card" style="height:80px"></div>
+    <div class="skeleton skeleton-card" style="height:80px"></div>
+  </div>
+
+  <!-- Invite-modal -->
+  <div id="invite-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6)">
+    <div style="position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+                border-radius:20px 20px 0 0;padding:20px 16px 40px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <p class="font-bold">Bjud in till crew</p>
+        <button id="invite-close" class="icon-btn" style="width:28px;height:28px">
+          <i data-lucide="x" style="width:15px;height:15px"></i>
+        </button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="invite-search" type="text" placeholder="Sök användarnamn…"
+               style="flex:1" autocapitalize="none" autocomplete="off">
+        <button id="btn-invite-search" class="btn btn-surface">
+          <i data-lucide="search" style="width:16px;height:16px"></i>
+        </button>
+      </div>
+      <div id="invite-results" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+
+</main>
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>
