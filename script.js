@@ -487,6 +487,7 @@ function initPage() {
   if (page === 'profile.html')     return initProfilePage();
   if (page === 'social.html')      return initSocialPage();
   if (page === 'crew.html')        return initCrewPage();
+  if (page === 'competition.html') return initCompetitionPage();
   // index.html = landing page, ingen init behövs
 }
 
@@ -2557,6 +2558,174 @@ async function searchInvite(sb, user, crewId, members) {
       await sb.from('crew_members').insert({ crew_id: crewId, user_id: btn.dataset.id });
       btn.textContent = '✓ Inbjuden'; btn.disabled = true;
     }));
+}
+
+// ── Tävling ───────────────────────────────────────────────────────
+async function initCompetitionPage() {
+  const sb = getSupabase();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { location.href = 'auth.html'; return; }
+
+  const skeleton = document.getElementById('comp-skeleton');
+  const emptyEl  = document.getElementById('comp-empty');
+
+  // Hämta tävling (via ?id eller senast skapad aktiv)
+  const params = new URLSearchParams(location.search);
+  const compId = params.get('id');
+  const today  = new Date().toISOString().slice(0, 10);
+
+  let query = sb.from('competitions').select('*');
+  if (compId) query = query.eq('id', compId);
+  else        query = query.lte('start_date', today).gte('end_date', today).order('created_at', { ascending: false }).limit(1);
+
+  const { data: comps } = await query;
+  const comp = comps?.[0];
+
+  skeleton.style.display = 'none';
+
+  if (!comp) {
+    emptyEl.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  // Visa header
+  const headerEl = document.getElementById('comp-header');
+  headerEl.style.display = 'block';
+  document.getElementById('comp-name').textContent = comp.name;
+
+  const startFmt = new Date(comp.start_date).toLocaleDateString('sv-SE', { day:'numeric', month:'long' });
+  const endFmt   = new Date(comp.end_date).toLocaleDateString('sv-SE',   { day:'numeric', month:'long' });
+  document.getElementById('comp-meta').textContent = `${comp.species} · ${startFmt} – ${endFmt}`;
+
+  const daysLeft = Math.ceil((new Date(comp.end_date) - new Date(today)) / 86400000);
+  const daysEl   = document.getElementById('comp-days');
+  if (daysLeft > 0) {
+    daysEl.textContent = `⏳ ${daysLeft} dag${daysLeft !== 1 ? 'ar' : ''} kvar`;
+    daysEl.style.color = daysLeft <= 7 ? 'var(--warning, #E8C81A)' : 'var(--text-2)';
+  } else {
+    daysEl.textContent = 'Tävlingen är avslutad';
+    daysEl.style.color = 'var(--text-3)';
+  }
+
+  // Hämta anmälningar + kolla om inloggad är anmäld
+  const { data: regs } = await sb.from('competition_registrations')
+    .select('*, profiles(username)').eq('competition_id', comp.id);
+  const regCount  = regs?.length ?? 0;
+  const isReg     = (regs ?? []).some(r => r.user_id === user.id);
+
+  // Uppdatera meta med antal anmälda
+  document.getElementById('comp-meta').textContent =
+    `${comp.species} · ${startFmt} – ${endFmt} · ${regCount} anmälda`;
+
+  // Anmäl-knapp
+  const btnReg   = document.getElementById('btn-register');
+  const badgeReg = document.getElementById('registered-badge');
+  if (isReg || daysLeft <= 0) {
+    btnReg.style.display = 'none';
+    badgeReg.style.display = 'block';
+    if (daysLeft <= 0) badgeReg.textContent = '🏁 Tävlingen är avslutad';
+  } else {
+    btnReg.addEventListener('click', async () => {
+      btnReg.disabled = true; btnReg.textContent = 'Anmäler…';
+      const { error } = await sb.from('competition_registrations')
+        .insert({ competition_id: comp.id, user_id: user.id });
+      if (!error) {
+        btnReg.style.display = 'none';
+        badgeReg.style.display = 'block';
+        // Lägg till aktuell användares profil i regs för leaderboard
+        const { data: myProfile } = await sb.from('profiles').select('username').eq('id', user.id).single();
+        regs.push({ user_id: user.id, profiles: myProfile });
+        renderAllLeaderboards(comp, regs, catches);
+      } else {
+        btnReg.disabled = false; btnReg.textContent = 'Anmäl mig till tävlingen';
+      }
+    });
+  }
+
+  // Visa flikar
+  document.getElementById('comp-tabs').style.display = 'flex';
+
+  // Flik-växling
+  document.querySelectorAll('.comp-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.comp-tab').forEach(t => {
+        t.style.background = 'none'; t.style.color = 'var(--text-2)';
+      });
+      tab.style.background = 'var(--accent)'; tab.style.color = '#fff';
+      document.querySelectorAll('.comp-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(`panel-${tab.dataset.tab}`).style.display = 'block';
+    });
+  });
+
+  // Hämta alla catches som matchar tävlingen
+  const regIds = (regs ?? []).map(r => r.user_id);
+  let catches = [];
+  if (regIds.length) {
+    const { data: c } = await sb.from('catches')
+      .select('user_id, fish_name, weight_g, length_cm, caught_at')
+      .eq('fish_name', comp.species)
+      .gte('caught_at', comp.start_date)
+      .lte('caught_at', comp.end_date + 'T23:59:59')
+      .in('user_id', regIds);
+    catches = c ?? [];
+  }
+
+  renderAllLeaderboards(comp, regs ?? [], catches);
+  if (window.lucide) lucide.createIcons();
+
+  function renderAllLeaderboards(comp, regs, catches) {
+    const medals = ['🥇','🥈','🥉'];
+
+    function renderRankList(items, unit) {
+      if (!items.length) return `<p class="text-sm text-muted" style="padding:20px 0;text-align:center">Inga fångster registrerade ännu</p>`;
+      return items.map((item, i) => {
+        const medal = i < 3 ? medals[i] : `<span style="font-size:.9rem;font-weight:700;color:var(--text-3);min-width:24px;display:inline-block;text-align:center">${i+1}</span>`;
+        return `
+          <div style="display:flex;align-items:center;gap:12px;background:var(--surface);
+                      border:1px solid var(--border-soft);border-radius:var(--radius);
+                      padding:12px 14px;margin-bottom:8px">
+            <span style="font-size:${i<3?'1.4':'1'}rem;min-width:28px;text-align:center">${medal}</span>
+            ${avatarHtml(item.username, 32)}
+            <a href="profile.html?id=${item.uid}" style="flex:1;font-weight:700;font-size:.9rem;
+               color:var(--text);text-decoration:none">@${item.username}</a>
+            <span style="font-weight:700;color:var(--accent)">${item.label}</span>
+          </div>`;
+      }).join('');
+    }
+
+    // Störst – max weight_g
+    const storst = regs.map(r => {
+      const best = catches.filter(c => c.user_id === r.user_id)
+        .sort((a,b) => (b.weight_g??0) - (a.weight_g??0))[0];
+      return best?.weight_g
+        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: best.weight_g, label: best.weight_g.toLocaleString('sv-SE')+' g' }
+        : null;
+    }).filter(Boolean).sort((a,b) => b.value - a.value);
+
+    // Flest – antal catches med length_cm >= min_length_cm
+    const flest = regs.map(r => {
+      const count = catches.filter(c => c.user_id === r.user_id && (c.length_cm ?? 0) >= comp.min_length_cm).length;
+      return count > 0
+        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: count, label: count+' st' }
+        : null;
+    }).filter(Boolean).sort((a,b) => b.value - a.value);
+
+    // Längst – max length_cm
+    const langst = regs.map(r => {
+      const best = catches.filter(c => c.user_id === r.user_id)
+        .sort((a,b) => (b.length_cm??0) - (a.length_cm??0))[0];
+      return best?.length_cm
+        ? { username: r.profiles?.username ?? '?', uid: r.user_id, value: best.length_cm, label: best.length_cm+' cm' }
+        : null;
+    }).filter(Boolean).sort((a,b) => b.value - a.value);
+
+    const minStr = comp.min_length_cm > 0 ? `<p class="text-xs text-muted" style="margin-bottom:10px">Räknas: abborre ≥ ${comp.min_length_cm} cm</p>` : '';
+
+    document.getElementById('panel-storst').innerHTML = renderRankList(storst, 'g');
+    document.getElementById('panel-flest').innerHTML  = minStr + renderRankList(flest, 'st');
+    document.getElementById('panel-langst').innerHTML = renderRankList(langst, 'cm');
+  }
 }
 
 // ── Fiskeprognos ──────────────────────────────────────────────────

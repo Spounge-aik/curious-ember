@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Fiskeappen – Tävling</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { corePlugins: { preflight: false } }</script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header" id="app-header"></header>
+<main class="page-content" style="padding:20px 16px 40px">
+
+  <!-- Skeleton -->
+  <div id="comp-skeleton" style="display:flex;flex-direction:column;gap:12px">
+    <div class="skeleton skeleton-card" style="height:110px"></div>
+    <div class="skeleton skeleton-card" style="height:44px"></div>
+    <div class="skeleton skeleton-card" style="height:64px"></div>
+    <div class="skeleton skeleton-card" style="height:64px"></div>
+    <div class="skeleton skeleton-card" style="height:64px"></div>
+  </div>
+
+  <!-- Tävlings-header -->
+  <div id="comp-header" style="display:none;margin-bottom:20px">
+    <div style="background:linear-gradient(135deg,rgba(232,200,26,.18),rgba(232,112,26,.12));
+                border:1px solid rgba(232,200,26,.3);border-radius:var(--radius-lg);padding:20px">
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div style="width:52px;height:52px;border-radius:50%;background:rgba(232,200,26,.2);
+                    display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="trophy" style="width:26px;height:26px;color:#E8C81A"></i>
+        </div>
+        <div style="flex:1">
+          <div id="comp-name" style="font-size:1.2rem;font-weight:700;margin-bottom:2px"></div>
+          <div id="comp-meta" class="text-sm text-muted"></div>
+          <div id="comp-days" style="margin-top:6px;font-size:.78rem;font-weight:600"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anmäl-knapp -->
+    <div style="margin-top:12px">
+      <button id="btn-register" class="btn btn-primary" style="width:100%;padding:12px">
+        Anmäl mig till tävlingen
+      </button>
+      <div id="registered-badge" style="display:none;text-align:center;padding:10px;
+           color:var(--success);font-weight:700;font-size:.9rem">
+        ✓ Du är anmäld – lycka till!
+      </div>
+    </div>
+  </div>
+
+  <!-- Flikar -->
+  <div id="comp-tabs" style="display:none;display:flex;gap:4px;margin-bottom:16px;
+       background:var(--surface);border-radius:var(--radius);padding:4px">
+    <button class="comp-tab active" data-tab="storst" style="flex:1;padding:8px 4px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:var(--accent);color:#fff">
+      🏆 Störst
+    </button>
+    <button class="comp-tab" data-tab="flest" style="flex:1;padding:8px 4px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:none;color:var(--text-2)">
+      🎣 Flest
+    </button>
+    <button class="comp-tab" data-tab="langst" style="flex:1;padding:8px 4px;border:none;
+            border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;
+            font-size:.82rem;font-weight:600;background:none;color:var(--text-2)">
+      📏 Längst
+    </button>
+  </div>
+
+  <div id="panel-storst" class="comp-panel"></div>
+  <div id="panel-flest"  class="comp-panel" style="display:none"></div>
+  <div id="panel-langst" class="comp-panel" style="display:none"></div>
+
+  <!-- Ingen tävling -->
+  <div id="comp-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-3)">
+    <i data-lucide="trophy" style="width:40px;height:40px;margin:0 auto 12px"></i>
+    <p class="font-bold">Ingen aktiv tävling</p>
+    <p class="text-sm">Kom tillbaka senare!</p>
+  </div>
+
+</main>
+<nav id="bottom-nav"></nav>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script type="module" src="script.js"></script>
+</body>
+</html>
