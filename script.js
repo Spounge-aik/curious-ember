@@ -462,6 +462,15 @@ async function guardAuth() {
     if (event === 'SIGNED_OUT') location.replace('auth.html');
   });
 
+  // Kräv att användaren valt användarnamn innan de når appen
+  if (page !== 'profile.html') {
+    const { data: profile } = await _sb.from('profiles').select('id').eq('id', session.user.id).single();
+    if (!profile) {
+      location.replace('profile.html');
+      return;
+    }
+  }
+
   initPage();
 }
 
@@ -2090,9 +2099,16 @@ async function initProfilePage() {
       const val = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
       const errEl = document.getElementById('username-error');
       if (val.length < 2) { errEl.textContent = 'Minst 2 tecken'; errEl.style.display = 'block'; return; }
+      const btn = document.getElementById('btn-save-username');
+      btn.disabled = true; btn.textContent = 'Sparar…';
       const { error } = await sb.from('profiles').upsert({ id: user.id, username: val });
-      if (error) { errEl.textContent = 'Användarnamnet är taget'; errEl.style.display = 'block'; return; }
-      location.reload();
+      if (error) {
+        errEl.textContent = 'Användarnamnet är taget – välj ett annat';
+        errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Fortsätt →';
+        return;
+      }
+      location.replace('index.html');
     });
     return;
   }

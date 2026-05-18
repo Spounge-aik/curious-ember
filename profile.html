@@ -12,16 +12,24 @@
 <header class="app-header" id="app-header"></header>
 <main class="page-content" style="padding:20px 16px 40px">
 
-  <!-- Sätt username (visas bara första gången) -->
-  <div id="setup-section" style="display:none;margin-bottom:24px">
-    <div style="background:var(--surface);border-radius:var(--radius-lg);padding:20px;border:1px solid var(--accent)">
-      <p class="font-bold mb-1">Välj ett användarnamn</p>
-      <p class="text-sm text-muted mb-3">Syns för vänner och i crews</p>
+  <!-- Välkomstskärm – visas bara första gången -->
+  <div id="setup-section" style="display:none">
+    <div style="text-align:center;padding:32px 0 24px">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(232,112,26,.15);
+                  display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <i data-lucide="fish" style="width:36px;height:36px;color:var(--accent)"></i>
+      </div>
+      <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:6px">Välkommen till Fiskeappen!</h1>
+      <p class="text-sm text-muted">Välj ett användarnamn för att komma igång.<br>Det syns för vänner och i crews.</p>
+    </div>
+    <div style="background:var(--surface);border-radius:var(--radius-lg);padding:20px;border:1px solid var(--border-soft)">
+      <label style="font-size:.82rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Användarnamn</label>
       <div style="display:flex;gap:8px">
         <input id="username-input" type="text" placeholder="ditt_namn" maxlength="20"
-               style="flex:1" autocomplete="off" autocapitalize="none">
-        <button id="btn-save-username" class="btn btn-primary">Spara</button>
+               style="flex:1" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button id="btn-save-username" class="btn btn-primary">Fortsätt →</button>
       </div>
+      <p class="text-xs text-muted" style="margin-top:6px">Små bokstäver, siffror och understreck. Minst 2 tecken.</p>
       <p id="username-error" class="text-xs" style="color:var(--error);margin-top:6px;display:none"></p>
     </div>
   </div>
