@@ -1473,11 +1473,81 @@ async function initCatchPage() {
   const fish = JSON.parse(sessionStorage.getItem('selectedFish') || 'null');
   const lake = JSON.parse(sessionStorage.getItem('selectedLake') || 'null');
 
-  const fishNameInput = document.getElementById('catch-fish-name');
-  const datetimeInput = document.getElementById('catch-datetime');
+  const fishNameInput  = document.getElementById('catch-fish-name');
+  const fishDisplay    = document.getElementById('catch-fish-display');
+  const datetimeInput  = document.getElementById('catch-datetime');
 
-  if (fish?.name) fishNameInput.value = fish.name;
+  function setSelectedFishName(name) {
+    fishNameInput.value  = name;
+    fishDisplay.textContent = name || 'Välj fiskart…';
+    fishDisplay.style.color = name ? 'var(--text)' : 'var(--text-3)';
+  }
+
+  if (fish?.name) setSelectedFishName(fish.name);
   datetimeInput.value = new Date().toISOString().slice(0, 16);
+
+  // ── Fiskarts-picker ──────────────────────────────────────────────
+  const picker     = document.getElementById('catch-fish-picker');
+  const pickerList = document.getElementById('catch-fish-picker-list');
+
+  if (picker && pickerList) {
+    // Hämta sjöns arter (cachas) + alla FISH_INFO-arter
+    let lakeFishIds = new Set();
+    if (lake?.lat && lake?.lng) {
+      fetchFishForLake(lake.lat, lake.lng, lake).then(lakeFish => {
+        lakeFishIds = new Set(lakeFish.map(f => f.id));
+        buildPickerList();
+      }).catch(() => buildPickerList());
+    } else {
+      buildPickerList();
+    }
+
+    function buildPickerList() {
+      const allFish = Object.entries(FISH_INFO)
+        .map(([id, info]) => ({ id, name: info.name }))
+        .filter(f => f.name)
+        .sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+
+      const lakeFish  = allFish.filter(f => lakeFishIds.has(f.id));
+      const otherFish = allFish.filter(f => !lakeFishIds.has(f.id));
+
+      const renderGroup = (label, items) => {
+        if (!items.length) return '';
+        return `
+          <p style="font-size:.7rem;font-weight:700;color:var(--text-3);
+                    letter-spacing:.08em;padding:8px 4px 4px;text-transform:uppercase">${label}</p>
+          ${items.map(f => `
+            <button class="catch-fish-pick-btn" data-name="${f.name}" data-id="${f.id}"
+                    style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                           border-radius:var(--radius);background:none;
+                           border:1px solid var(--border-soft);cursor:pointer;width:100%;
+                           text-align:left;color:var(--text);font-family:inherit;
+                           transition:border-color .15s">
+              <span style="font-size:20px">${FISH_EMOJI[f.id] ?? '🐟'}</span>
+              <span style="font-size:.9rem;font-weight:600">${f.name}</span>
+            </button>`).join('')}`;
+      };
+
+      pickerList.innerHTML =
+        renderGroup(lake?.name ? `I ${lake.name}` : 'Sjöns arter', lakeFish) +
+        renderGroup('Övriga arter', otherFish);
+
+      pickerList.querySelectorAll('.catch-fish-pick-btn').forEach(btn =>
+        btn.addEventListener('click', () => {
+          setSelectedFishName(btn.dataset.name);
+          picker.style.display = 'none';
+        }));
+    }
+
+    document.getElementById('btn-pick-fish').addEventListener('click', () => {
+      picker.style.display = 'block';
+      if (window.lucide) lucide.createIcons();
+    });
+    document.getElementById('catch-fish-picker-close').addEventListener('click', () => {
+      picker.style.display = 'none';
+    });
+    picker.addEventListener('click', e => { if (e.target === picker) picker.style.display = 'none'; });
+  }
 
   // Hämta väder i bakgrunden
   let currentWeather = null;

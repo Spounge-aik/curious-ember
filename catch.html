@@ -52,8 +52,15 @@
   <!-- Formulär -->
   <div class="flex flex-col gap-4">
     <div>
-      <label class="section-title" for="catch-fish-name" style="display:block;margin-bottom:6px">Fiskart</label>
-      <input type="text" id="catch-fish-name" placeholder="Fiskart" autocomplete="off">
+      <label class="section-title" style="display:block;margin-bottom:6px">Fiskart</label>
+      <button id="btn-pick-fish" style="width:100%;text-align:left;padding:0 14px;height:48px;
+              background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+              color:var(--text);font-family:inherit;font-size:.95rem;cursor:pointer;
+              display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span id="catch-fish-display" style="flex:1">Välj fiskart…</span>
+        <i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--text-3);flex-shrink:0"></i>
+      </button>
+      <input type="hidden" id="catch-fish-name">
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -116,6 +123,21 @@
   </div>
 
 </main>
+
+<!-- Fiskarts-picker -->
+<div id="catch-fish-picker" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6)">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:var(--surface);
+              border-radius:20px 20px 0 0;padding:20px 16px 40px;max-height:85vh;
+              display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-shrink:0">
+      <p class="font-bold">Välj fiskart</p>
+      <button id="catch-fish-picker-close" class="icon-btn" style="width:28px;height:28px">
+        <i data-lucide="x" style="width:15px;height:15px"></i>
+      </button>
+    </div>
+    <div id="catch-fish-picker-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+</div>
 
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
