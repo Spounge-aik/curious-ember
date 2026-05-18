@@ -74,6 +74,35 @@ const FISH_DATA = {
   sarv:     { season:'Sommar',              time:'Förmiddag',             optTemp:[16,24], goodWind:[0,4] },
 };
 
+// ── Viktspann per art [min, max, sliderMax] i gram ────────────────
+const FISH_WEIGHT_GUIDE = {
+  gadda:    { min: 800,  max: 4000,  sliderMax: 15000 },
+  abborre:  { min: 100,  max: 600,   sliderMax: 2000  },
+  gos:      { min: 400,  max: 2500,  sliderMax: 8000  },
+  lake:     { min: 300,  max: 1500,  sliderMax: 5000  },
+  lax:      { min: 1500, max: 6000,  sliderMax: 20000 },
+  oring:    { min: 300,  max: 2000,  sliderMax: 10000 },
+  rodding:  { min: 200,  max: 1200,  sliderMax: 4000  },
+  harr:     { min: 150,  max: 800,   sliderMax: 2500  },
+  regnbage: { min: 200,  max: 1500,  sliderMax: 5000  },
+  mort:     { min: 50,   max: 300,   sliderMax: 600   },
+  braxen:   { min: 300,  max: 2000,  sliderMax: 5000  },
+  karp:     { min: 2000, max: 8000,  sliderMax: 20000 },
+  rudor:    { min: 100,  max: 500,   sliderMax: 1500  },
+  id:       { min: 300,  max: 1500,  sliderMax: 4000  },
+  asp:      { min: 300,  max: 1500,  sliderMax: 4000  },
+  sik:      { min: 200,  max: 1000,  sliderMax: 3000  },
+  bjorkna:  { min: 50,   max: 300,   sliderMax: 800   },
+  sarv:     { min: 50,   max: 300,   sliderMax: 600   },
+};
+
+const CLARITY_LABELS = {
+  clear:          { label: '💎 Klart',         tip: 'Naturfärgade beten (silver, grön, brun)' },
+  slightly_murky: { label: '🌊 Lätt grumligt', tip: 'Halvljusa färger (orange, perch, chartreuse)' },
+  murky:          { label: '🟤 Grumligt',       tip: 'Ljusa kontrasterande beten (chartreuse, vit, gul)' },
+  dark:           { label: '⚫ Mycket mörkt',   tip: 'Starkt lysande eller UV-aktiva beten (chartreuse, orange)' },
+};
+
 // ── Väder (Open-Meteo – ingen API-nyckel, CORS-fri) ──────────────
 let _weatherCache = {};
 async function fetchWeather(lat, lng) {
@@ -785,10 +814,8 @@ async function initLakePage() {
 
     fishGrid.querySelectorAll('.fish-card').forEach(card =>
       card.addEventListener('click', () => {
-        const same = selectedFish?.id === card.dataset.id;
-        selectedFish = same ? null : fish.find(x => x.id === card.dataset.id);
-        renderFish();
-        showLakeFishPanel(selectedFish, lake);
+        const f = fish.find(x => x.id === card.dataset.id);
+        if (f) openFishOverlay(f);
       }));
   }
   renderFish();
@@ -847,6 +874,95 @@ async function initLakePage() {
       loadNotes();
     });
   }
+
+  function fmtW(g) { return g >= 1000 ? (g/1000).toFixed(g % 1000 === 0 ? 0 : 1) + ' kg' : g + ' g'; }
+
+  function openFishOverlay(f) {
+    const overlay = document.getElementById('fish-overlay');
+    overlay.style.display = 'block';
+    overlay.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+    if (window.lucide) lucide.createIcons();
+
+    document.getElementById('fo-emoji').textContent = FISH_EMOJI[f.id] ?? '🐟';
+    document.getElementById('fo-name').textContent  = f.name;
+    document.getElementById('fo-tag').textContent   = f.tag ?? 'Vanlig';
+
+    const fd = FISH_DATA[f.id] ?? {};
+    document.getElementById('fo-info-rows').innerHTML = `
+      <div class="fic-row"><span>📅 Bästa säsong</span><span>${fd.season ?? '—'}</span></div>
+      <div class="fic-row"><span>⏰ Aktivast</span><span>${fd.time ?? '—'}</span></div>
+      <div class="fic-row" id="fo-weather-row">
+        <span>🌤️ Väder nu</span><span class="text-muted" style="font-size:.78rem">Hämtar…</span>
+      </div>`;
+
+    fetchWeather(lake.lat, lake.lng).then(w => {
+      const a = assessWeather(f.id, w, lake.lat, lake.lng);
+      const row = document.getElementById('fo-weather-row');
+      if (!row || !a) return;
+      row.innerHTML = `<span>🌤️ Väder nu</span><span style="color:${a.color};font-weight:700">${a.rating}</span>`;
+      let extra = `<div class="fic-row"><span></span><span class="text-muted" style="font-size:.72rem">${a.details}</span></div>`;
+      if (a.pressureTxt) extra += `<div class="fic-row"><span>🌡 Lufttryck</span><span style="font-size:.8rem">${a.pressureTxt}</span></div>`;
+      extra += `<div class="fic-row"><span>🌙 Månfas</span><span style="font-size:.8rem">${a.moon.emoji} ${a.moon.name}</span></div>`;
+      if (a.sunTimes) {
+        const fmt = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+        extra += `<div class="fic-row"><span>🌅 Gryning/Skymning</span><span style="font-size:.8rem">${fmt(a.sunTimes.sunrise)} / ${fmt(a.sunTimes.sunset)}</span></div>`;
+        if (a.sunTimes.isGoldenHour) extra += `<div class="fic-row"><span></span><span style="color:var(--accent);font-weight:700;font-size:.8rem">⚡ Aktivt fisketillfälle!</span></div>`;
+      }
+      row.insertAdjacentHTML('afterend', extra);
+    });
+
+    // Vattenklarhet
+    let selectedClarity = null;
+    document.querySelectorAll('.fo-clarity-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      btn.onclick = () => {
+        document.querySelectorAll('.fo-clarity-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedClarity = btn.dataset.clarity;
+        document.getElementById('fo-clarity-tip').textContent =
+          CLARITY_LABELS[selectedClarity]?.tip ?? '';
+      };
+    });
+
+    // Viktslider
+    const wg  = FISH_WEIGHT_GUIDE[f.id] ?? { min: 200, max: 1000, sliderMax: 3000 };
+    const slider = document.getElementById('fo-weight-slider');
+    slider.min   = 0;
+    slider.max   = wg.sliderMax;
+    slider.step  = Math.max(1, Math.round(wg.sliderMax / 200));
+    slider.value = Math.round((wg.min + wg.max) / 2);
+
+    document.getElementById('fo-weight-max').textContent  = fmtW(wg.sliderMax);
+    document.getElementById('fo-rec-label').textContent   = `Rekommenderat: ${fmtW(wg.min)}–${fmtW(wg.max)}`;
+
+    function updateSlider() {
+      const val    = parseInt(slider.value);
+      const minPct = (wg.min / wg.sliderMax) * 100;
+      const maxPct = (wg.max / wg.sliderMax) * 100;
+      slider.style.background = `linear-gradient(to right,
+        rgba(255,255,255,.15) 0%, rgba(255,255,255,.15) ${minPct}%,
+        var(--accent) ${minPct}%, var(--accent) ${maxPct}%,
+        rgba(255,255,255,.15) ${maxPct}%, rgba(255,255,255,.15) 100%)`;
+      document.getElementById('fo-weight-value').textContent = fmtW(val);
+    }
+    slider.oninput = updateSlider;
+    updateSlider();
+
+    // Starta fiske
+    document.getElementById('fo-start-btn').onclick = () => {
+      sessionStorage.setItem('selectedFish',   JSON.stringify(f));
+      sessionStorage.setItem('waterClarity',   selectedClarity ?? '');
+      sessionStorage.setItem('targetWeight',   slider.value);
+      document.body.style.overflow = '';
+      location.href = `session.html?lakeId=${lake.id}&fishId=${f.id}`;
+    };
+  }
+
+  document.getElementById('fish-overlay-close')?.addEventListener('click', () => {
+    document.getElementById('fish-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+  });
 
   async function showLakeFishPanel(f, lake) {
     if (!f) { selWrap.style.display = 'none'; return; }
@@ -995,6 +1111,14 @@ async function initSessionPage() {
     const moon    = getMoonPhase();
     const sun     = lake?.lat ? getSunTimes(lake.lat, lake.lng) : null;
     const pressMap = { rising: 'Stigande lufttryck (↗ bra fiskeförhållanden)', stable: 'Stabilt lufttryck', falling: 'Fallande lufttryck (↘ fisken äter sällan)', unknown: '' };
+    const storedClarity = sessionStorage.getItem('waterClarity') || '';
+    const storedWeight  = sessionStorage.getItem('targetWeight')  || '';
+    const clarityMap    = {
+      clear:          'Klart vatten – naturfärgade beten fungerar bäst',
+      slightly_murky: 'Lätt grumligt vatten – halvljusa färger rekommenderas',
+      murky:          'Grumligt vatten – ljusa kontrasterande beten ger bäst resultat',
+      dark:           'Mycket mörkt vatten – starkt lysande eller UV-aktiva beten krävs',
+    };
     const conditions = [
       w?.temp     !== null ? `Temp: ${w.temp}°C`             : '',
       w?.wind     !== null ? `Vind: ${w.wind} m/s`           : '',
@@ -1002,6 +1126,8 @@ async function initSessionPage() {
       `Månfas: ${moon.emoji} ${moon.name}`,
       sun?.isGoldenHour ? 'Just nu: gryning/skymning – fisken är extra aktiv' : '',
       sun ? `Gryning ${sun.sunrise.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}, skymning ${sun.sunset.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})}` : '',
+      storedClarity ? clarityMap[storedClarity] ?? '' : '',
+      storedWeight  ? `Fiskar siktar på ${parseInt(storedWeight) >= 1000 ? (parseInt(storedWeight)/1000).toFixed(1) + ' kg' : storedWeight + ' g'} fisk` : '',
     ].filter(Boolean).join('. ');
 
     const res = await fetch('/api/recommend', {

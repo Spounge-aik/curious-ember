@@ -703,6 +703,44 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
   margin-top: 2px;
 }
 
+/* ── Fiskvals-overlay ──────────────────────────────────────────── */
+.fo-clarity-btn {
+  padding: 12px 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1.5px solid var(--border-soft);
+  color: var(--text-2);
+  font-size: .85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  text-align: center;
+}
+.fo-clarity-btn.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(232,112,26,.08);
+}
+/* Webkit slider thumb */
+#fo-weight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+#fo-weight-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid var(--bg);
+}
+
 /* ── Landing page kort ─────────────────────────────────────────── */
 .landing-card {
   display: flex;

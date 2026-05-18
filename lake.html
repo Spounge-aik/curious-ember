@@ -69,6 +69,63 @@
 
 </main>
 
+<!-- Fiskvals-overlay -->
+<div id="fish-overlay" style="display:none;position:fixed;inset:0;z-index:500;
+     background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="padding:20px 16px 40px">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <button id="fish-overlay-close" class="icon-btn">
+        <i data-lucide="chevron-left" style="width:20px;height:20px"></i>
+      </button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="fo-emoji" style="font-size:30px"></span>
+        <div>
+          <div id="fo-name" style="font-weight:700;font-size:1.1rem"></div>
+          <div id="fo-tag" class="text-xs text-muted"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info-rader -->
+    <div id="fo-info-rows" class="mb-6"
+         style="background:var(--surface);border-radius:var(--radius-lg);
+                padding:14px 16px;border:1px solid var(--border-soft)"></div>
+
+    <!-- Vattenklarhet -->
+    <div class="mb-6">
+      <p class="section-title mb-3">Hur mörkt är vattnet?</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="fo-clarity-btn" data-clarity="clear">💎 Klart</button>
+        <button class="fo-clarity-btn" data-clarity="slightly_murky">🌊 Lätt grumligt</button>
+        <button class="fo-clarity-btn" data-clarity="murky">🟤 Grumligt</button>
+        <button class="fo-clarity-btn" data-clarity="dark">⚫ Mycket mörkt</button>
+      </div>
+      <p id="fo-clarity-tip" class="text-xs text-muted mt-2" style="min-height:1.2em"></p>
+    </div>
+
+    <!-- Målvikt -->
+    <div class="mb-8">
+      <p class="section-title mb-1">Hur stor fisk siktar du på?</p>
+      <p id="fo-weight-value" style="font-size:1.4rem;font-weight:700;color:var(--accent);margin:8px 0"></p>
+      <input type="range" id="fo-weight-slider" style="width:100%;height:6px;border-radius:3px;
+             outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between">
+        <span class="text-xs text-muted">0</span>
+        <span id="fo-rec-label" class="text-xs" style="color:var(--accent)"></span>
+        <span id="fo-weight-max" class="text-xs text-muted"></span>
+      </div>
+    </div>
+
+    <!-- Starta fiske -->
+    <button id="fo-start-btn" class="btn btn-primary btn-full btn-lg btn-pulse">
+      <i data-lucide="fish" class="icon"></i> Starta fiske!
+    </button>
+
+  </div>
+</div>
+
 <nav id="bottom-nav"></nav>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script type="module" src="script.js"></script>
