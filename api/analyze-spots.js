@@ -20,17 +20,13 @@ function post(options, body) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { fishName, fishData, lakeName, weather, season, mapBase64 } = req.body;
-
-  const weatherText = weather
-    ? `Aktuellt väder: ${weather.temp ?? '?'}°C, vind ${weather.wind ?? '?'} m/s, nederbörd ${weather.precip ?? 0} mm.`
-    : '';
+  const { fishName, fishData, lakeName, season, conditions, mapBase64 } = req.body;
 
   const prompt = `Du är en erfaren fiskeguide i Sverige. Analysera djupkartan för sjön ${lakeName} och rekommendera exakt 3 bra fiskeplatser för ${fishName}.
 
 Fiskens preferenser: ${fishData}
 Årstid: ${season}
-${weatherText}
+${conditions ? `Aktuella förhållanden: ${conditions}` : ''}
 
 Titta på djupkartan och identifiera strukturer som djupkanter, grunda vikar, vegetation, stenkast och liknande. Basera rekommendationerna på dessa strukturer kombinerat med fiskens beteende.
 

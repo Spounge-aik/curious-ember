@@ -1270,15 +1270,42 @@ function initDepthMap(lakeId, fish, weatherRef) {
       const fd = FISH_DATA[fish?.id] ?? {};
       const fishDataStr = `Bästa säsong: ${fd.season ?? '?'}, aktivast: ${fd.time ?? '?'}, optimaltemperatur: ${fd.optTemp?.[0] ?? '?'}–${fd.optTemp?.[1] ?? '?'}°C, maxvind: ${fd.goodWind?.[1] ?? '?'} m/s.`;
 
+      // Bygg fullständig kontextstrings med alla nya parametrar
+      const w        = weatherRef?.current ?? null;
+      const moon     = getMoonPhase();
+      const sun      = lake?.lat ? getSunTimes(lake.lat, lake.lng) : null;
+      const pressMap = { rising: 'Stigande (↗ bra)', stable: 'Stabilt', falling: 'Fallande (↘ fisken äter sällan)', unknown: '' };
+      const clarity  = sessionStorage.getItem('waterClarity') || '';
+      const targetW  = sessionStorage.getItem('targetWeight')  || '';
+      const clarityMap = {
+        clear:          'Klart vatten – fiskar nära ytan och i vegetation',
+        slightly_murky: 'Lätt grumligt – fiskar lite djupare strukturer',
+        murky:          'Grumligt – fiskar djupkanter och tydliga strukturer',
+        dark:           'Mycket mörkt – fiskar nära botten och skydd',
+      };
+      const fmtTime = d => d.toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' });
+
+      const conditions = [
+        w?.temp     != null ? `Lufttemp: ${w.temp}°C`                            : '',
+        w?.wind     != null ? `Vind: ${w.wind} m/s`                              : '',
+        w?.pressure != null ? `Lufttryck: ${w.pressure} hPa, ${pressMap[w.pressureTrend] ?? ''}` : '',
+        `Månfas: ${moon.emoji} ${moon.name} (fiskepoäng: ${moon.score}/10)`,
+        sun ? `Gryning: ${fmtTime(sun.sunrise)}, Skymning: ${fmtTime(sun.sunset)}` : '',
+        sun?.isGoldenHour ? 'Just nu är det gryning/skymning – fisken är extra aktiv' : '',
+        clarity ? clarityMap[clarity] ?? '' : '',
+        targetW ? `Fiskar siktar på ca ${parseInt(targetW) >= 1000 ? (parseInt(targetW)/1000).toFixed(1) + ' kg' : targetW + ' g'} fisk` : '',
+      ].filter(Boolean).join('. ');
+
       const resp = await fetch('/api/analyze-spots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fishName:  fish?.name ?? 'Okänd fisk',
-          fishData:  fishDataStr,
-          lakeName:  lake.name,
-          weather:   weatherRef?.current ?? null,
-          season:    getSeason(),
+          fishName:   fish?.name ?? 'Okänd fisk',
+          fishData:   fishDataStr,
+          lakeName:   lake.name,
+          weather:    w,
+          season:     getSeason(),
+          conditions,
           mapBase64,
         }),
       });
