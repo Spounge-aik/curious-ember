@@ -20,9 +20,6 @@ export function renderHeader() {
               style="${aiOn ? 'color:var(--accent);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)' : ''}">
         <i data-lucide="sparkles" style="width:16px;height:16px"></i>
       </button>
-      <button class="icon-btn" id="btn-desktop" title="Växla desktop-läge">
-        <i data-lucide="monitor" style="width:16px;height:16px"></i>
-      </button>
       <a href="profile.html" class="icon-btn" title="Min profil">
         <i data-lucide="user" style="width:16px;height:16px"></i>
       </a>
@@ -43,25 +40,6 @@ export function renderHeader() {
     btn.style.borderColor = nowOn ? 'var(--accent)' : '';
     btn.style.boxShadow   = nowOn ? '0 0 0 2px var(--accent-dim)' : '';
   });
-
-  // Desktop-toggle
-  document.getElementById('btn-desktop').addEventListener('click', () => {
-    document.body.classList.toggle('desktop-mode');
-    const on  = document.body.classList.contains('desktop-mode');
-    const btn = document.getElementById('btn-desktop');
-    btn.innerHTML = on
-      ? `<i data-lucide="smartphone" style="width:16px;height:16px"></i>`
-      : `<i data-lucide="monitor"    style="width:16px;height:16px"></i>`;
-    if (window.lucide) lucide.createIcons();
-    localStorage.setItem('desktopMode', on ? '1' : '0');
-  });
-
-  if (localStorage.getItem('desktopMode') === '1') {
-    document.body.classList.add('desktop-mode');
-    document.getElementById('btn-desktop').innerHTML =
-      `<i data-lucide="smartphone" style="width:16px;height:16px"></i>`;
-    if (window.lucide) lucide.createIcons();
-  }
 
   // Utloggning
   document.getElementById('btn-logout').addEventListener('click', async () => {

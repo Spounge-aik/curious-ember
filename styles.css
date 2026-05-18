@@ -441,11 +441,12 @@ textarea { resize: none; }
 .empty-state { text-align: center; padding: 56px 20px; color: var(--text-3); }
 .spinner { text-align: center; padding: 40px; color: var(--text-3); font-size: .85rem; }
 
-/* ── Desktop mode ──────────────────────────────── */
-body.desktop-mode { max-width: 900px; }
-body.desktop-mode #bottom-nav,
-body.desktop-mode .app-header { max-width: 900px; }
-body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
+/* ── Responsiv desktop ─────────────────────────── */
+@media (min-width: 700px) {
+  body { max-width: 900px; }
+  #bottom-nav, .app-header { max-width: 900px; }
+  .equipment-grid { grid-template-columns: repeat(3, 1fr); }
+}
 
 /* ── Leaflet dark ──────────────────────────────── */
 .leaflet-container { font-family: inherit; background: var(--surface-2) !important; }
