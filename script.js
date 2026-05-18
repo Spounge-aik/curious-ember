@@ -802,18 +802,22 @@ function openFishOverlay(f, lake) {
     });
   }
 
-  // Vattenklarhet
-  let selectedClarity = null;
-  document.querySelectorAll('.fo-clarity-btn').forEach(btn => {
-    btn.classList.remove('selected');
-    btn.onclick = () => {
-      document.querySelectorAll('.fo-clarity-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedClarity = btn.dataset.clarity;
-      const tip = document.getElementById('fo-clarity-tip');
-      if (tip) tip.textContent = CLARITY_LABELS[selectedClarity]?.tip ?? '';
-    };
-  });
+  // Vattenklarhet – slider
+  const CLARITY_LEVELS = ['clear', 'slightly_murky', 'murky', 'dark'];
+  const claritySlider  = document.getElementById('fo-clarity-slider');
+  const clarityLabel   = document.getElementById('fo-clarity-label');
+  const clarityTip     = document.getElementById('fo-clarity-tip');
+  let selectedClarity  = CLARITY_LEVELS[0];
+  claritySlider.value  = 0;
+
+  function updateClarity() {
+    selectedClarity = CLARITY_LEVELS[parseInt(claritySlider.value)];
+    const cl = CLARITY_LABELS[selectedClarity];
+    if (clarityLabel) clarityLabel.textContent = cl.label;
+    if (clarityTip)   clarityTip.textContent   = cl.tip;
+  }
+  claritySlider.oninput = updateClarity;
+  updateClarity();
 
   // Viktslider
   const wg     = FISH_WEIGHT_GUIDE[f.id] ?? { min: 200, max: 1000, sliderMax: 3000 };

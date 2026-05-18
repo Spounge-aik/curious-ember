@@ -95,12 +95,16 @@
 
     <!-- Vattenklarhet -->
     <div class="mb-6">
-      <p class="section-title mb-3">Hur mörkt är vattnet?</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="fo-clarity-btn" data-clarity="clear">💎 Klart</button>
-        <button class="fo-clarity-btn" data-clarity="slightly_murky">🌊 Lätt grumligt</button>
-        <button class="fo-clarity-btn" data-clarity="murky">🟤 Grumligt</button>
-        <button class="fo-clarity-btn" data-clarity="dark">⚫ Mycket mörkt</button>
+      <p class="section-title mb-1">Hur mörkt är vattnet?</p>
+      <p id="fo-clarity-label" style="font-size:1rem;font-weight:700;margin:8px 0"></p>
+      <input type="range" id="fo-clarity-slider" min="0" max="3" step="1" value="0"
+             style="width:100%;height:6px;border-radius:3px;outline:none;
+                    appearance:none;-webkit-appearance:none;cursor:pointer;
+                    margin-bottom:6px;
+                    background:linear-gradient(to right,#b3e0ff,#1a3a5c)">
+      <div style="display:flex;justify-content:space-between">
+        <span class="text-xs text-muted">💎 Klart</span>
+        <span class="text-xs text-muted">⚫ Mycket mörkt</span>
       </div>
       <p id="fo-clarity-tip" class="text-xs text-muted mt-2" style="min-height:1.2em"></p>
     </div>

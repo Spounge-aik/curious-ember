@@ -722,6 +722,7 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
   background: rgba(232,112,26,.08);
 }
 /* Webkit slider thumb */
+#fo-clarity-slider::-webkit-slider-thumb,
 #fo-weight-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 22px;
@@ -732,6 +733,7 @@ body.desktop-mode .equipment-grid { grid-template-columns: repeat(3, 1fr); }
   border: 3px solid var(--bg);
   box-shadow: 0 0 0 1px var(--accent);
 }
+#fo-clarity-slider::-moz-range-thumb,
 #fo-weight-slider::-moz-range-thumb {
   width: 22px;
   height: 22px;
