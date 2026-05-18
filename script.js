@@ -2263,30 +2263,58 @@ async function initSocialPage() {
     }
   }
 
-  // Sök användare
-  document.getElementById('btn-friend-search').addEventListener('click', searchUsers);
-  document.getElementById('friend-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchUsers(); });
+  // Hämta alla befintliga förfrågningar (skickade + mottagna) för att visa rätt knappstatus
+  const { data: allFs } = await sb.from('friendships').select('*')
+    .or(`requester.eq.${user.id},addressee.eq.${user.id}`);
+  const sentTo    = new Set((allFs ?? []).filter(f => f.requester === user.id).map(f => f.addressee));
+  const acceptedS = new Set((allFs ?? []).filter(f => f.status === 'accepted')
+    .map(f => f.requester === user.id ? f.addressee : f.requester));
 
-  async function searchUsers() {
-    const q = document.getElementById('friend-search').value.trim().toLowerCase();
-    if (!q) return;
-    const { data: results } = await sb.from('profiles').select('*').ilike('username', `%${q}%`).neq('id', user.id).limit(5);
-    const resEl = document.getElementById('search-results');
-    if (!results?.length) { resEl.innerHTML = '<p class="text-xs text-muted">Inga användare hittades</p>'; return; }
-    resEl.innerHTML = results.map(p => `
-      <div style="display:flex;align-items:center;gap:10px;background:var(--surface);
-                  border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px">
-        ${avatarHtml(p.username, 32)}
-        <a href="profile.html?id=${p.id}" style="font-weight:700;font-size:.9rem;flex:1;color:var(--text);text-decoration:none">${p.username}</a>
-        <button class="btn btn-surface btn-sm add-friend-btn" data-id="${p.id}">+ Lägg till</button>
-      </div>`).join('');
+  // Ladda alla profiler alphabetiskt
+  const { data: allProfiles } = await sb.from('profiles').select('*')
+    .neq('id', user.id).order('username', { ascending: true });
+
+  const resEl = document.getElementById('search-results');
+
+  function renderUserList(profiles) {
+    if (!profiles?.length) { resEl.innerHTML = '<p class="text-xs text-muted">Inga användare hittades</p>'; return; }
+    resEl.innerHTML = profiles.map(p => {
+      const isFriend  = acceptedS.has(p.id);
+      const isPending = sentTo.has(p.id) && !isFriend;
+      const btn = isFriend
+        ? `<span class="tag" style="color:var(--success)">✓ Vänner</span>`
+        : isPending
+        ? `<button class="btn btn-surface btn-sm" disabled>Skickat</button>`
+        : `<button class="btn btn-surface btn-sm add-friend-btn" data-id="${p.id}">+ Lägg till</button>`;
+      return `
+        <div style="display:flex;align-items:center;gap:10px;background:var(--surface);
+                    border:1px solid var(--border-soft);border-radius:var(--radius);padding:10px 14px">
+          ${avatarHtml(p.username, 32)}
+          <a href="profile.html?id=${p.id}" style="font-weight:700;font-size:.9rem;flex:1;color:var(--text);text-decoration:none">${p.username}</a>
+          ${btn}
+        </div>`;
+    }).join('');
     resEl.querySelectorAll('.add-friend-btn').forEach(btn =>
       btn.addEventListener('click', async () => {
         const { error } = await sb.from('friendships').insert({ requester: user.id, addressee: btn.dataset.id });
-        btn.textContent = error ? 'Redan skickad' : '✓ Skickat';
-        btn.disabled = true;
+        if (!error) {
+          sentTo.add(btn.dataset.id);
+          btn.textContent = '✓ Skickat';
+          btn.disabled = true;
+        }
       }));
   }
+
+  renderUserList(allProfiles);
+
+  // Filtrera lokalt vid sökning
+  function filterUsers() {
+    const q = document.getElementById('friend-search').value.trim().toLowerCase();
+    const filtered = q ? (allProfiles ?? []).filter(p => p.username.includes(q)) : allProfiles;
+    renderUserList(filtered);
+  }
+  document.getElementById('btn-friend-search').addEventListener('click', filterUsers);
+  document.getElementById('friend-search').addEventListener('input', filterUsers);
 
   if (window.lucide) lucide.createIcons();
 }
