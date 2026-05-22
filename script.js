@@ -2812,12 +2812,21 @@ async function initForecastPage() {
     try {
       const url = `https://api.open-meteo.com/v1/forecast`
         + `?latitude=${lake.lat.toFixed(4)}&longitude=${lake.lng.toFixed(4)}`
-        + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,cloudcover_mean,weathercode`
+        + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,cloudcover_mean,weathercode`
+        + `&hourly=windspeed_10m`
         + `&forecast_days=7&timezone=Europe%2FStockholm`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('Nätverksfel');
       const d = await r.json();
       const daily = d.daily;
+
+      // Beräkna snittvindhastighet för dagtid (07–20) per dag från timdata
+      const hourlyWind = d.hourly?.windspeed_10m ?? [];
+      const dayWindAvg = daily.time.map((_, i) => {
+        const dayHours = hourlyWind.slice(i * 24 + 7, i * 24 + 21); // 07:00–20:00
+        if (!dayHours.length) return null;
+        return dayHours.reduce((s, v) => s + (v ?? 0), 0) / dayHours.length;
+      });
 
       const fd  = FISH_DATA[selectedFishId] ?? {};
       const list = document.getElementById('fc-list');
@@ -2829,7 +2838,7 @@ async function initForecastPage() {
         const tMax    = daily.temperature_2m_max[i];
         const tMin    = daily.temperature_2m_min[i];
         const tAvg    = (tMax + tMin) / 2;
-        const wind    = daily.windspeed_10m_max[i];
+        const wind    = dayWindAvg[i];
         const precip  = daily.precipitation_sum[i];
         const cloud   = daily.cloudcover_mean[i];
         const code    = daily.weathercode[i];
